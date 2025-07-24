@@ -391,7 +391,19 @@ class DeductionPolicyRecommender:
         """为用户推荐政策"""
         recommendations = []
         
+        # 过滤政策类型：只推荐"个人"和"企业和个人"类型的政策
+        filtered_policies = []
         for policy_data in policies:
+            policy_type = policy_data.get('类型', '')
+            if policy_type in ['个人', '企业和个人']:
+                filtered_policies.append(policy_data)
+            else:
+                # 记录被过滤的政策
+                print(f"📋 跳过企业专用政策: {policy_data.get('政策编号', 'Unknown')} - {policy_type}")
+        
+        print(f"🔍 政策过滤结果: 总数{len(policies)} → 适用{len(filtered_policies)} (过滤掉{len(policies) - len(filtered_policies)}个企业专用政策)")
+        
+        for policy_data in filtered_policies:
             policy_id = policy_data.get('政策编号', '')
             deduction_score = self.calculate_deduction_score(user_info, policy_data)
             
@@ -632,7 +644,8 @@ class DeductionPolicyRecommender:
         print(f"✅ 加载了 {len(data)} 个{data_type}")
         return data
     
-    def generate_report(self, user_info: Dict, recommendations: List[PolicyRecommendation]) -> str:
+    def generate_report(self, user_info: Dict, recommendations: List[PolicyRecommendation], 
+                       total_policies: int = None) -> str:
         """生成推荐报告"""
         user_id = user_info.get('用户ID', '未知')
         report = []
@@ -646,6 +659,19 @@ class DeductionPolicyRecommender:
             f"推荐算法: 扣分制评分（规则权重{self.weights['rule_weight']:.1%} + 相似度权重{self.weights['similarity_weight']:.1%}）",
             ""
         ])
+        
+        # 政策过滤信息
+        if total_policies:
+            filtered_count = len(recommendations)
+            excluded_count = total_policies - filtered_count
+            report.extend([
+                "🔍 政策筛选信息",
+                "-" * 40,
+                f"  政策总数: {total_policies}",
+                f"  适用政策: {filtered_count} (个人 + 企业和个人)",
+                f"  排除政策: {excluded_count} (仅限企业)",
+                ""
+            ])
         
         # 用户信息
         report.append("👤 用户基本信息")
@@ -672,13 +698,23 @@ class DeductionPolicyRecommender:
         
         # 推荐统计
         total = len(recommendations)
+        if total == 0:
+            report.extend([
+                "📊 推荐统计",
+                "-" * 40,
+                "  ⚠️ 没有找到适合的政策推荐",
+                "  💡 建议: 检查政策数据或用户信息",
+                ""
+            ])
+            return "\n".join(report)
+        
         stats = {level: len([r for r in recommendations if r.match_level == level]) 
                 for level in ['高度匹配', '中度匹配', '低度匹配', '需改进']}
         
         report.extend([
             "📊 推荐统计",
             "-" * 40,
-            f"  总政策数: {total}",
+            f"  适用政策数: {total}",
             f"  🟢 高度匹配: {stats['高度匹配']} ({stats['高度匹配']/total:.1%})",
             f"  🟡 中度匹配: {stats['中度匹配']} ({stats['中度匹配']/total:.1%})",
             f"  🟠 低度匹配: {stats['低度匹配']} ({stats['低度匹配']/total:.1%})",
