@@ -101,7 +101,9 @@ class PolicyKeywordExtractor:
             '工作': ['工作年限', '从业', '就业', '创业', '经营'],
             '地域': ['平湖', '本市', '市域', '嘉兴', '户籍', '居住'],
             '状态': ['困难', '失业', '灵活就业', '在职', '离职'],
-            '企业': ['企业', '单位', '公司', '机构', '组织']
+            '企业': ['企业', '单位', '公司', '机构', '组织'],
+            '社保': ['社保缴纳', '当地社保', '本地社保', '社会保险'],
+            '征地': ['被征地', '土地征收', '失地', '征地补偿']
         }
         
         # 目标人群关键词
@@ -111,10 +113,12 @@ class PolicyKeywordExtractor:
             '创业者': ['创业', '创办', '自主创业', '初次创业'],
             '人才': ['人才', '专业人才', '高层次人才', '技能人才'],
             '农民': ['农民', '农村', '农业', '被征地'],
+            '征地人员': ['被征地人员', '征地农民', '失地农民', '土地征收'],
             '退役军人': ['退役军人', '军人', '转业'],
             '残疾人': ['残疾人', '残障', '特殊群体'],
             '老年人': ['老年', '养老', '退休'],
-            '企业职工': ['职工', '员工', '从业人员']
+            '企业职工': ['职工', '员工', '从业人员'],
+            '困难群体': ['困难人员', '低保', '特困', '救助']
         }
         
         # 实体识别词典
@@ -448,6 +452,11 @@ class DeductionPolicyRecommender:
                 ('平湖市', 'location', 'in', 'location_requirement'),
                 ('本市', 'location', 'in', 'location_requirement'),
                 ('嘉兴市', 'location', 'in', 'location_requirement')
+            ],
+            'social_insurance': [
+                ('当地缴纳社保', 'local_insurance', '==', 'insurance_requirement'),
+                ('本地社保', 'local_insurance', '==', 'insurance_requirement'),
+                ('社会保险缴费', 'local_insurance', '==', 'insurance_requirement')
             ]
         }
     
@@ -590,26 +599,6 @@ class DeductionPolicyRecommender:
             return keywords
         except:
             return []
-        """提取用户关键词"""
-        user_text = ""
-        
-        # 收集用户信息文本
-        for key, value in user_info.items():
-            if key not in ['用户ID', '工作经历']:
-                user_text += str(value) + " "
-        
-        # 添加工作经历
-        if '工作经历' in user_info:
-            for work in user_info['工作经历']:
-                user_text += str(work.get('公司名称', '')) + " "
-                user_text += str(work.get('职位', '')) + " "
-        
-        # 提取关键词
-        try:
-            keywords = jieba.analyse.extract_tags(user_text, topK=20)
-            return keywords
-        except:
-            return []
     
     def extract_policy_keywords(self, policy_content) -> List[str]:
         """提取政策关键词"""
@@ -686,12 +675,12 @@ class DeductionPolicyRecommender:
         # 4. 整体关键词相似度
         overall_sim = self.calculate_keyword_similarity(user_keywords, policy_keywords.keywords)
         
-        # 5. 加权计算最终相似度
+        # 5. 加权计算最终相似度（调整权重，降低专业匹配度的影响）
         final_similarity = (
-            overall_sim * 0.4 +
-            professional_sim * 0.3 +
-            benefit_relevance * 0.2 +
-            condition_sim * 0.1
+            overall_sim * 0.5 +          # 整体关键词相似度权重提高
+            professional_sim * 0.2 +     # 专业匹配度权重降低
+            benefit_relevance * 0.2 +    # 福利相关性保持
+            condition_sim * 0.1          # 条件相似度保持
         )
         
         similarity_details['overall_similarity'] = final_similarity
@@ -712,38 +701,75 @@ class DeductionPolicyRecommender:
         return similarity_details
     
     def _calculate_professional_similarity(self, user_major: str, target_keywords: List[str]) -> float:
-        """计算专业匹配度"""
-        if not user_major or not target_keywords:
-            return 0.0
+        """计算专业匹配度（优化版 - 更符合实际政策情况）"""
+        if not user_major:
+            return 0.3  # 没有专业信息时给基础分
         
-        user_major_keywords = jieba.analyse.extract_tags(user_major, topK=5)
+        # 大部分就业创业政策其实对专业要求不严格，给基础匹配度
+        base_score = 0.4
         
-        # 检查专业关键词与目标人群关键词的匹配
-        match_score = 0.0
-        for user_kw in user_major_keywords:
-            for target_kw in target_keywords:
-                if user_kw in target_kw or target_kw in user_kw:
-                    match_score += 0.2
-                    
-        # 特殊专业匹配规则
-        tech_majors = ['计算机', '软件', '信息', '电子', '网络', '数据']
-        business_majors = ['管理', '经济', '金融', '会计', '市场']
+        # 专业大类映射（更符合政策实际情况）
+        major_categories = {
+            '理工科': ['计算机', '软件', '信息', '电子', '网络', '数据', '工程', '机械', '自动化', '通信', '数学', '物理', '化学'],
+            '商科管理': ['管理', '经济', '金融', '会计', '市场', '工商', '贸易', '商务'],
+            '文科': ['中文', '外语', '英语', '法学', '新闻', '广告', '汉语'],
+            '教育': ['教育', '师范', '学前', '体育'],
+            '医学': ['医学', '护理', '药学', '临床', '口腔'],
+            '艺术': ['艺术', '设计', '美术', '音乐', '表演'],
+            '农林': ['农学', '林学', '园艺', '动物', '植物']
+        }
         
-        user_major_lower = user_major.lower()
-        is_tech = any(tech in user_major_lower for tech in tech_majors)
-        is_business = any(business in user_major_lower for business in business_majors)
+        # 确定用户专业大类
+        user_category = None
+        for category, majors in major_categories.items():
+            if any(major in user_major for major in majors):
+                user_category = category
+                break
         
-        # 检查政策是否针对技术人才或商业人才
-        target_text = ' '.join(target_keywords).lower()
-        if is_tech and any(tech in target_text for tech in ['技术', '信息', '科技', '研发']):
-            match_score += 0.3
-        if is_business and any(biz in target_text for biz in ['创业', '管理', '经营', '金融']):
-            match_score += 0.3
-            
-        return min(1.0, match_score)
+        if not user_category:
+            return base_score  # 未识别的专业给基础分
+        
+        # 政策对特定专业大类的倾向性（基于实际政策特点）
+        policy_text = ' '.join(target_keywords).lower()
+        
+        # 理工科在技术创新、数字经济政策中有优势
+        if user_category == '理工科':
+            if any(tech in policy_text for tech in ['技术', '创新', '科技', '数字', '智能', '研发', '高新']):
+                base_score += 0.3
+            if any(startup in policy_text for startup in ['创业', '孵化', '双创']):
+                base_score += 0.2
+        
+        # 商科管理在创业、企业扶持政策中有优势
+        elif user_category == '商科管理':
+            if any(business in policy_text for business in ['创业', '企业', '经营', '管理', '金融', '投资']):
+                base_score += 0.3
+            if any(skill in policy_text for skill in ['培训', '技能', '职业']):
+                base_score += 0.1
+        
+        # 教育类在教育相关政策中有优势
+        elif user_category == '教育':
+            if any(edu in policy_text for edu in ['教育', '培训', '师资', '教学']):
+                base_score += 0.4
+        
+        # 医学类在健康产业政策中有优势
+        elif user_category == '医学':
+            if any(health in policy_text for health in ['医疗', '健康', '卫生', '护理']):
+                base_score += 0.4
+        
+        # 对于大部分就业政策，专业影响不大
+        general_employment_keywords = ['就业', '招聘', '岗位', '职业', '工作']
+        if any(keyword in policy_text for keyword in general_employment_keywords):
+            base_score += 0.1  # 轻微加分，因为大部分就业政策不限专业
+        
+        # 特殊情况：如果是通用性政策（创业、培训、补贴等），专业相关性不强
+        universal_keywords = ['补贴', '补助', '社保', '培训', '见习', '帮扶']
+        if any(keyword in policy_text for keyword in universal_keywords):
+            base_score = max(base_score, 0.6)  # 通用政策给较高基础分
+        
+        return min(1.0, base_score)
     
     def _calculate_benefit_relevance(self, user_info: Dict, benefit_keywords: List[str]) -> float:
-        """计算福利相关性"""
+        """计算福利相关性（增强版 - 考虑新增字段和精确匹配）"""
         if not benefit_keywords:
             return 0.0
         
@@ -753,15 +779,64 @@ class DeductionPolicyRecommender:
         work_years = user_info.get('工作年限', 0)
         education = user_info.get('最高学历', '')
         
+        # 新增字段的福利相关性判断（精确匹配）
+        is_land_acquisition = user_info.get('征地人员', '否') == '是'
+        is_difficult = user_info.get('困难人员', '否') == '是'
+        has_local_insurance = user_info.get('当地缴纳社保', '否') == '是'
+        is_disabled = user_info.get('残疾人', '否') == '是'
+        is_veteran = user_info.get('退役军人', '否') == '是'
+        
+        # 征地人员特殊福利相关性（仅征地人员匹配）
+        if is_land_acquisition:
+            if any(kw in benefit_keywords for kw in ['征地', '补偿', '安置', '保障']):
+                relevance_score += 0.5  # 征地人员对相关福利高度相关
+            if any(kw in benefit_keywords for kw in ['就业', '培训', '创业']):
+                relevance_score += 0.3  # 征地人员通常需要就业帮扶
+        else:
+            # 非征地人员，如果福利中有征地相关内容，降低相关性
+            if any(kw in benefit_keywords for kw in ['征地', '失地', '土地征收']):
+                relevance_score -= 0.4  # 负相关性
+        
+        # 困难人员特殊福利相关性（仅困难人员匹配）
+        if is_difficult:
+            if any(kw in benefit_keywords for kw in ['困难', '救助', '帮扶', '补助', '低保']):
+                relevance_score += 0.5  # 困难人员对救助类福利高度相关
+            if any(kw in benefit_keywords for kw in ['就业', '培训', '技能']):
+                relevance_score += 0.3  # 困难人员需要就业帮助
+        
+        # 残疾人特殊福利相关性（仅残疾人匹配）
+        if is_disabled:
+            if any(kw in benefit_keywords for kw in ['残疾', '助残', '无障碍', '康复']):
+                relevance_score += 0.5
+        else:
+            # 非残疾人，如果福利中有残疾相关内容，大幅降低相关性
+            if any(kw in benefit_keywords for kw in ['残疾', '助残', '残障']):
+                relevance_score -= 0.6  # 强负相关性
+        
+        # 退役军人特殊福利相关性
+        if is_veteran:
+            if any(kw in benefit_keywords for kw in ['退役', '军转', '安置', '优抚']):
+                relevance_score += 0.5
+        else:
+            # 非退役军人，降低退役军人政策相关性
+            if any(kw in benefit_keywords for kw in ['退役军人', '军转', '自主择业']):
+                relevance_score -= 0.4
+        
+        # 当地社保缴纳者福利相关性
+        if has_local_insurance:
+            if any(kw in benefit_keywords for kw in ['就业', '创业', '补贴', '扶持']):
+                relevance_score += 0.2  # 本地参保人员可享受本地就业创业政策
+        
+        # 原有的福利相关性判断（只有在没有特殊身份限制时才计算）
         # 新毕业生更关注就业补贴
         if work_years <= 2:
             if any(kw in benefit_keywords for kw in ['就业', '见习', '培训']):
-                relevance_score += 0.3
+                relevance_score += 0.2
         
         # 有经验人员更关注创业支持
         if work_years >= 3:
             if any(kw in benefit_keywords for kw in ['创业', '贷款', '资助']):
-                relevance_score += 0.3
+                relevance_score += 0.2
         
         # 高学历人员更关注人才政策
         if education in ['本科', '硕士', '博士']:
@@ -769,10 +844,10 @@ class DeductionPolicyRecommender:
                 relevance_score += 0.2
         
         # 基础福利相关性
-        if benefit_keywords:
-            relevance_score += 0.2
+        if benefit_keywords and relevance_score >= 0:
+            relevance_score += 0.1
             
-        return min(1.0, relevance_score)
+        return max(0.0, min(1.0, relevance_score))  # 确保在0-1范围内
     
     def _calculate_condition_similarity(self, user_info: Dict, condition_keywords: List[str]) -> float:
         """计算条件相似度"""
@@ -813,19 +888,31 @@ class DeductionPolicyRecommender:
         if policy_keywords is None:
             policy_keywords = self.keyword_extractor.extract_keywords_from_policy(policy_data)
         
-        # 3. 计算规则匹配扣分
-        rule_deductions = self._calculate_rule_deductions(user_info, requirements)
-        deduction_score.rule_deductions = rule_deductions
+        # 3. 检查政策排除条件（新增）
+        exclusion_penalty = self._check_policy_exclusions(user_info, policy_data, policy_keywords)
+        if exclusion_penalty > 0:
+            # 如果有排除条件，直接给予重度扣分
+            deduction_score.rule_deductions.append({
+                'reason': '不符合政策目标人群',
+                'deduction': exclusion_penalty,
+                'severity': 'critical',
+                'field': 'target_group_exclusion',
+                'requirement': '政策目标人群限制'
+            })
         
-        # 4. 计算增强版相似度扣分
+        # 4. 计算规则匹配扣分
+        rule_deductions = self._calculate_rule_deductions(user_info, requirements)
+        deduction_score.rule_deductions.extend(rule_deductions)
+        
+        # 5. 计算增强版相似度扣分
         similarity_details = self.calculate_enhanced_similarity(user_info, policy_keywords)
         similarity_deductions = self._calculate_enhanced_similarity_deductions(
             user_info, similarity_details
         )
         deduction_score.similarity_deductions = similarity_deductions
         
-        # 5. 计算总扣分
-        total_rule_deduction = sum(d['deduction'] for d in rule_deductions)
+        # 6. 计算总扣分
+        total_rule_deduction = sum(d['deduction'] for d in deduction_score.rule_deductions)
         total_similarity_deduction = sum(d['deduction'] for d in similarity_deductions)
         
         weighted_rule_deduction = total_rule_deduction * self.deduction_weights['rule_weight']
@@ -833,15 +920,64 @@ class DeductionPolicyRecommender:
         
         total_deduction = weighted_rule_deduction + weighted_similarity_deduction
         
-        # 6. 计算最终分数
+        # 7. 计算最终分数
         deduction_score.final_score = max(0, deduction_score.base_score - total_deduction)
         
-        # 7. 生成扣分原因
+        # 8. 生成扣分原因
         deduction_score.deduction_reasons = self._generate_deduction_reasons(
-            rule_deductions, similarity_deductions
+            deduction_score.rule_deductions, similarity_deductions
         )
         
         return deduction_score
+    
+    def _check_policy_exclusions(self, user_info: Dict, policy_data: Dict, 
+                                policy_keywords: PolicyKeywords) -> float:
+        """检查政策排除条件（简化版）"""
+        policy_content = policy_data.get('内容', '')
+        if isinstance(policy_content, list):
+            policy_text = ' '.join(policy_content)
+        else:
+            policy_text = str(policy_content)
+        
+        policy_title = policy_data.get('标题', '')
+        full_policy_text = policy_title + ' ' + policy_text
+        
+        # 获取用户身份信息
+        user_is_land_acquisition = user_info.get('征地人员', '否') == '是'
+        user_is_disabled = user_info.get('残疾人', '否') == '是'
+        user_is_difficult = user_info.get('困难人员', '否') == '是'
+        user_is_veteran = user_info.get('退役军人', '否') == '是'
+        
+        exclusion_penalty = 0.0
+        
+        # 1. 征地人员政策排除检查
+        land_keywords = ['被征地人员', '征地农民', '失地农民', '土地征收', '征地补偿']
+        if any(keyword in full_policy_text for keyword in land_keywords):
+            if not user_is_land_acquisition:
+                # 政策针对征地人员，但用户不是征地人员
+                exclusion_penalty += 80.0
+        
+        # 2. 残疾人政策排除检查
+        disabled_keywords = ['残疾人', '残障', '助残', '残疾补助', '无障碍']
+        if any(keyword in full_policy_text for keyword in disabled_keywords):
+            if not user_is_disabled:
+                # 政策针对残疾人，但用户不是残疾人
+                exclusion_penalty += 85.0
+        
+        # 3. 困难人员政策排除检查
+        difficult_specific_keywords = ['低保户', '特困人员', '建档立卡']
+        if any(keyword in full_policy_text for keyword in difficult_specific_keywords):
+            if not user_is_difficult:
+                # 政策针对特定困难人员，但用户不是
+                exclusion_penalty += 70.0
+        
+        # 4. 退役军人政策排除检查
+        veteran_keywords = ['退役军人', '军转干部', '自主择业', '军人安置']
+        if any(keyword in full_policy_text for keyword in veteran_keywords):
+            if not user_is_veteran:
+                exclusion_penalty += 75.0
+        
+        return exclusion_penalty
     
     def _calculate_enhanced_similarity_deductions(self, user_info: Dict, similarity_details: Dict) -> List[Dict]:
         """计算增强版相似度扣分"""
@@ -1324,9 +1460,30 @@ class DeductionPolicyRecommender:
         # 用户基本信息
         report.append("👤 用户基本信息")
         report.append("-" * 40)
-        basic_fields = ['最高学历', '专业', '工作年限', '籍贯', '技能等级']
-        for field in basic_fields:
+        basic_fields = ['最高学历', '专业', '工作年限', '籍贯', '技能等级', '征地人员', '当地缴纳社保', '困难人员']
+        
+        # 检查是否有其他特殊身份字段
+        additional_fields = []
+        if '残疾人' in user_info:
+            additional_fields.append('残疾人')
+        if '退役军人' in user_info:
+            additional_fields.append('退役军人')
+        
+        all_fields = basic_fields + additional_fields
+        
+        for field in all_fields:
             value = user_info.get(field, '未提供')
+            # 为特殊字段添加图标
+            if field == '征地人员' and value == '是':
+                value = f"🏗️ {value} (征地人员)"
+            elif field == '困难人员' and value == '是':
+                value = f"🆘 {value} (困难群体)"
+            elif field == '当地缴纳社保' and value == '是':
+                value = f"🏛️ {value} (本地参保)"
+            elif field == '残疾人' and value == '是':
+                value = f"♿ {value} (残疾人士)"
+            elif field == '退役军人' and value == '是':
+                value = f"🎖️ {value} (退役军人)"
             report.append(f"  {field}: {value}")
         
         # 工作经历
@@ -1420,31 +1577,86 @@ class DeductionPolicyRecommender:
     
     def _generate_improvement_suggestions(self, recommendations: List[PolicyRecommendation], 
                                         user_info: Dict) -> List[str]:
-        """生成改进建议"""
+        """生成改进建议（增强版 - 考虑新增字段）"""
         suggestions = []
+        
+        # 获取用户特殊身份信息
+        is_land_acquisition = user_info.get('征地人员', '否') == '是'
+        is_difficult = user_info.get('困难人员', '否') == '是'
+        has_local_insurance = user_info.get('当地缴纳社保', '否') == '是'
+        is_disabled = user_info.get('残疾人', '否') == '是'
+        is_veteran = user_info.get('退役军人', '否') == '是'
         
         # 统计扣分字段
         field_deductions = {}
+        exclusion_count = 0
         for rec in recommendations:
             for deduction in rec.deduction_score.rule_deductions:
                 field = deduction['field']
-                if field not in field_deductions:
-                    field_deductions[field] = []
-                field_deductions[field].append(deduction)
+                if field == 'target_group_exclusion':
+                    exclusion_count += 1
+                else:
+                    if field not in field_deductions:
+                        field_deductions[field] = []
+                    field_deductions[field].append(deduction)
+        
+        # 政策排除统计提示
+        if exclusion_count > 0:
+            suggestions.append(f"🚫 有 {exclusion_count} 个政策因目标人群不匹配被排除（如残疾人、征地人员专项政策等）")
+        
+        # 根据特殊身份提供针对性建议
+        if is_land_acquisition:
+            suggestions.append("🏗️ 征地人员身份：重点关注征地人员专项政策和就业帮扶政策")
+            land_policies = [rec for rec in recommendations 
+                           if rec.final_score > 60 and (any('征地' in benefit for benefit in rec.benefits) or '征地' in rec.policy_title)]
+            if land_policies:
+                suggestions.append(f"✅ 发现 {len(land_policies)} 个高匹配度征地相关政策，建议优先申请")
+            else:
+                suggestions.append("💡 暂未发现高匹配度的征地专项政策，建议关注就业帮扶类政策")
+        
+        if is_difficult:
+            suggestions.append("🆘 困难人员身份：重点关注困难群体帮扶和就业援助政策")
+            difficult_policies = [rec for rec in recommendations 
+                                if rec.final_score > 60 and any('困难' in benefit or '帮扶' in benefit for benefit in rec.benefits)]
+            if difficult_policies:
+                suggestions.append(f"✅ 发现 {len(difficult_policies)} 个困难群体相关政策，建议优先申请")
+        
+        if is_disabled:
+            suggestions.append("♿ 残疾人身份：重点关注残疾人专项福利和就业援助政策")
+            disabled_policies = [rec for rec in recommendations 
+                               if rec.final_score > 60 and any('残疾' in benefit or '助残' in benefit for benefit in rec.benefits)]
+            if disabled_policies:
+                suggestions.append(f"✅ 发现 {len(disabled_policies)} 个残疾人相关政策")
+        
+        if is_veteran:
+            suggestions.append("🎖️ 退役军人身份：重点关注退役军人安置和就业扶持政策")
+            veteran_policies = [rec for rec in recommendations 
+                              if rec.final_score > 60 and any('退役' in benefit or '军转' in benefit for benefit in rec.benefits)]
+            if veteran_policies:
+                suggestions.append(f"✅ 发现 {len(veteran_policies)} 个退役军人相关政策")
+        
+        if has_local_insurance:
+            suggestions.append("🏛️ 本地参保：可申请当地就业创业扶持政策")
+        else:
+            suggestions.append("💡 建议在当地缴纳社保，可享受更多本地就业创业政策")
         
         # 根据高频扣分字段生成建议
         for field, deductions in field_deductions.items():
             if len(deductions) >= len(recommendations) * 0.3:  # 超过30%的政策都在此字段扣分
                 if field == 'education':
-                    suggestions.append("考虑提升学历水平，更多政策对学历有较高要求")
+                    suggestions.append("📚 考虑提升学历水平，更多政策对学历有较高要求")
                 elif field == 'age':
-                    suggestions.append("部分政策有年龄限制，建议关注适合当前年龄段的政策")
+                    suggestions.append("⏰ 部分政策有年龄限制，建议关注适合当前年龄段的政策")
                 elif field == 'work_years':
-                    suggestions.append("积累更多工作经验将有助于申请更多政策")
+                    suggestions.append("💼 积累更多工作经验将有助于申请更多政策")
                 elif field == 'talent_code':
-                    suggestions.append("申请人才码认定可以显著提升政策匹配度")
+                    suggestions.append("🏆 申请人才码认定可以显著提升政策匹配度")
                 elif field == 'location':
-                    suggestions.append("注意政策的地域限制，优先关注本地政策")
+                    suggestions.append("📍 注意政策的地域限制，优先关注本地政策")
+                elif field == 'land_acquisition':
+                    suggestions.append("🏗️ 征地人员身份需要相关证明材料")
+                elif field == 'local_insurance':
+                    suggestions.append("🏛️ 当地社保缴纳记录影响政策申请资格")
         
         # 相似度改进建议
         low_similarity_count = sum(1 for rec in recommendations 
@@ -1452,18 +1664,18 @@ class DeductionPolicyRecommender:
                                        for d in rec.deduction_score.similarity_deductions))
         
         if low_similarity_count >= len(recommendations) * 0.5:
-            suggestions.append("完善个人资料，增加专业技能和工作经历描述")
-            suggestions.append("关注与您专业背景更相关的政策类型")
+            suggestions.append("📝 完善个人资料，增加专业技能和工作经历描述")
+            suggestions.append("🎯 关注与您专业背景更相关的政策类型")
         
         # 优先推荐建议
         high_match_policies = [rec for rec in recommendations if rec.match_level == '高度匹配']
         if high_match_policies:
             top_policy = high_match_policies[0]
-            suggestions.append(f"优先申请：{top_policy.policy_id}（{top_policy.policy_title}），匹配度最高")
+            suggestions.append(f"⭐ 优先申请：{top_policy.policy_id}（{top_policy.policy_title}），匹配度最高")
         
         medium_match_policies = [rec for rec in recommendations if rec.match_level == '中度匹配']
         if medium_match_policies and len(high_match_policies) < 3:
-            suggestions.append(f"备选方案：关注中度匹配的政策，如{medium_match_policies[0].policy_id}")
+            suggestions.append(f"📋 备选方案：关注中度匹配的政策，如{medium_match_policies[0].policy_id}")
         
         return suggestions if suggestions else ["您的条件总体不错，建议重点关注排名靠前的政策"]
     
