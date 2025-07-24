@@ -3,6 +3,7 @@
 """
 优化版扣分制政策推荐系统
 基于正则规则匹配和关键词相似度的扣分制评分算法
+增加关键词提取输出功能
 """
 
 import os
@@ -221,6 +222,150 @@ class DeductionPolicyRecommender:
             'location': [('平湖市', 'location', 'in'), ('本市', 'location', 'in')]
         }
     
+    def extract_keywords_from_policies(self, policies: List[Dict], output_file: str = None) -> List[PolicyKeywords]:
+        """提取所有政策的关键词并可选择输出到文件"""
+        print(f"🔍 开始提取 {len(policies)} 个政策的关键词...")
+        
+        all_keywords = []
+        for i, policy_data in enumerate(policies, 1):
+            policy_id = policy_data.get('政策编号', f'Policy_{i}')
+            print(f"   处理政策 {i}/{len(policies)}: {policy_id}")
+            
+            try:
+                keywords = self.keyword_extractor.extract_keywords_from_policy(policy_data)
+                all_keywords.append(keywords)
+            except Exception as e:
+                print(f"   ❌ 提取失败: {e}")
+        
+        print(f"✅ 关键词提取完成！成功处理 {len(all_keywords)} 个政策")
+        
+        # 输出到文件
+        if output_file:
+            self._save_keywords_to_file(all_keywords, output_file)
+        
+        return all_keywords
+    
+    def _save_keywords_to_file(self, keywords_list: List[PolicyKeywords], output_file: str):
+        """保存关键词到文件"""
+        try:
+            os.makedirs(os.path.dirname(output_file) if os.path.dirname(output_file) else '.', exist_ok=True)
+            
+            # 保存为JSON格式
+            if output_file.endswith('.json'):
+                keywords_data = [asdict(keywords) for keywords in keywords_list]
+                with open(output_file, 'w', encoding='utf-8') as f:
+                    json.dump(keywords_data, f, ensure_ascii=False, indent=2)
+                print(f"✅ 关键词数据已保存为JSON: {output_file}")
+            
+            # 保存为可读的文本格式
+            else:
+                with open(output_file, 'w', encoding='utf-8') as f:
+                    f.write("政策关键词提取报告\n")
+                    f.write("=" * 80 + "\n")
+                    f.write(f"生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+                    f.write(f"处理政策数: {len(keywords_list)}\n\n")
+                    
+                    for i, keywords in enumerate(keywords_list, 1):
+                        f.write(f"#{i} 政策编号: {keywords.policy_id}\n")
+                        f.write(f"标题: {keywords.title}\n")
+                        f.write("-" * 60 + "\n")
+                        
+                        # 核心关键词（前10个）
+                        f.write("🔑 核心关键词（权重排序）:\n")
+                        for j, (kw, score) in enumerate(list(keywords.keyword_scores.items())[:10], 1):
+                            f.write(f"   {j}. {kw} (权重: {score:.3f})\n")
+                        
+                        # 分类关键词
+                        if keywords.benefit_keywords:
+                            f.write(f"💰 福利关键词: {', '.join(keywords.benefit_keywords)}\n")
+                        
+                        if keywords.condition_keywords:
+                            f.write(f"📋 条件关键词: {', '.join(keywords.condition_keywords)}\n")
+                        
+                        if keywords.target_group_keywords:
+                            f.write(f"🎯 目标群体: {', '.join(keywords.target_group_keywords)}\n")
+                        
+                        if keywords.entities:
+                            f.write(f"🏢 实体词: {', '.join(keywords.entities)}\n")
+                        
+                        f.write(f"⏰ 提取时间: {keywords.extracted_time}\n")
+                        f.write("\n" + "=" * 60 + "\n\n")
+                
+                print(f"✅ 关键词报告已保存为文本: {output_file}")
+                
+        except Exception as e:
+            print(f"❌ 保存关键词文件失败: {e}")
+    
+    def generate_keywords_summary(self, keywords_list: List[PolicyKeywords]) -> str:
+        """生成关键词统计摘要"""
+        if not keywords_list:
+            return "❌ 没有关键词数据"
+        
+        # 统计所有关键词频率
+        all_keywords = {}
+        all_benefits = {}
+        all_conditions = {}
+        all_targets = {}
+        
+        for keywords in keywords_list:
+            # 统计核心关键词
+            for kw in keywords.keywords:
+                all_keywords[kw] = all_keywords.get(kw, 0) + 1
+            
+            # 统计分类关键词
+            for kw in keywords.benefit_keywords:
+                all_benefits[kw] = all_benefits.get(kw, 0) + 1
+            
+            for kw in keywords.condition_keywords:
+                all_conditions[kw] = all_conditions.get(kw, 0) + 1
+            
+            for kw in keywords.target_group_keywords:
+                all_targets[kw] = all_targets.get(kw, 0) + 1
+        
+        # 生成摘要
+        summary = []
+        summary.extend([
+            "📊 关键词提取统计摘要",
+            "=" * 50,
+            f"处理政策数量: {len(keywords_list)}",
+            f"提取关键词总数: {len(all_keywords)}",
+            ""
+        ])
+        
+        # 高频关键词Top10
+        top_keywords = sorted(all_keywords.items(), key=lambda x: x[1], reverse=True)[:10]
+        summary.append("🔥 高频关键词 Top10:")
+        for i, (kw, count) in enumerate(top_keywords, 1):
+            percentage = count / len(keywords_list) * 100
+            summary.append(f"   {i}. {kw} ({count}次, {percentage:.1f}%)")
+        
+        summary.append("")
+        
+        # 高频福利关键词
+        if all_benefits:
+            top_benefits = sorted(all_benefits.items(), key=lambda x: x[1], reverse=True)[:5]
+            summary.append("💰 高频福利关键词:")
+            for kw, count in top_benefits:
+                summary.append(f"   • {kw} ({count}次)")
+            summary.append("")
+        
+        # 高频条件关键词
+        if all_conditions:
+            top_conditions = sorted(all_conditions.items(), key=lambda x: x[1], reverse=True)[:5]
+            summary.append("📋 高频条件关键词:")
+            for kw, count in top_conditions:
+                summary.append(f"   • {kw} ({count}次)")
+            summary.append("")
+        
+        # 高频目标群体关键词
+        if all_targets:
+            top_targets = sorted(all_targets.items(), key=lambda x: x[1], reverse=True)[:5]
+            summary.append("🎯 高频目标群体:")
+            for kw, count in top_targets:
+                summary.append(f"   • {kw} ({count}次)")
+        
+        return "\n".join(summary)
+    
     def calculate_deduction_score(self, user_info: Dict, policy_data: Dict, 
                                 policy_keywords: Optional[PolicyKeywords] = None) -> DeductionScore:
         """计算扣分制分数"""
@@ -237,7 +382,7 @@ class DeductionPolicyRecommender:
                 'reason': '不符合政策目标人群',
                 'deduction': exclusion_penalty,
                 'severity': 'critical',
-                'field': 'target_group'  # 添加字段信息
+                'field': 'target_group'
             })
         
         # 计算规则扣分
@@ -268,6 +413,9 @@ class DeductionPolicyRecommender:
                          policy_keywords: PolicyKeywords) -> float:
         """检查排除条件"""
         policy_text = self._get_policy_text(policy_data)
+        policy_id = policy_data.get('政策编号', '')
+        
+        # 排除条件映射
         exclusion_map = {
             ('被征地人员', '征地农民'): ('征地人员', 80.0),
             ('残疾人', '残障'): ('残疾人', 85.0),
@@ -275,10 +423,44 @@ class DeductionPolicyRecommender:
             ('低保户', '特困人员'): ('困难人员', 70.0)
         }
         
+        # 特殊政策的目标群体检查（更精确的匹配）
+        special_policy_mapping = {
+            'POL0004': '征地人员',  # 被征地人员政策
+            'POL0006': '困难人员',  # 就业困难人员政策 
+            'POL0007': '残疾人',   # 残疾人政策
+            'POL0008': '退役军人'  # 退役军人政策（如果存在）
+        }
+        
+        # 优先检查特殊政策ID映射
+        if policy_id in special_policy_mapping:
+            required_identity = special_policy_mapping[policy_id]
+            user_value = user_info.get(required_identity, '否')
+            
+            if user_value != '是':
+                penalty_mapping = {
+                    '征地人员': 80.0,
+                    '残疾人': 85.0, 
+                    '退役军人': 75.0,
+                    '困难人员': 70.0
+                }
+                penalty = penalty_mapping.get(required_identity, 80.0)
+                print(f"   🎯 特殊政策检查: {policy_id} 需要{required_identity}身份，用户为{user_value}，扣{penalty}分")
+                return penalty
+            else:
+                print(f"   ✅ 特殊政策匹配: {policy_id} 用户{required_identity}身份符合")
+                return 0.0
+        
+        # 通用关键词检查（用于其他政策）
         for keywords, (user_field, penalty) in exclusion_map.items():
             if any(kw in policy_text for kw in keywords):
-                if user_info.get(user_field, '否') != '是':
+                user_value = user_info.get(user_field, '否')
+                if user_value != '是':
+                    print(f"   🎯 关键词检查: 政策包含{keywords}，用户{user_field}为{user_value}，扣{penalty}分")
                     return penalty
+                else:
+                    print(f"   ✅ 关键词匹配: 用户{user_field}身份符合")
+                    return 0.0
+        
         return 0.0
     
     def _extract_requirements(self, policy_content) -> List[Dict]:
@@ -321,7 +503,7 @@ class DeductionPolicyRecommender:
                     'reason': f"缺少{req['field']}信息",
                     'deduction': self.deduction_standards['minor']['documentation_missing'],
                     'severity': 'minor',
-                    'field': req['field']  # 添加字段信息
+                    'field': req['field']
                 })
                 continue
             
@@ -333,7 +515,7 @@ class DeductionPolicyRecommender:
                     'reason': gap_info,
                     'deduction': deduction_amount,
                     'severity': severity,
-                    'field': req['field']  # 添加字段信息
+                    'field': req['field']
                 })
         
         return deductions
@@ -381,7 +563,7 @@ class DeductionPolicyRecommender:
                     'reason': reason,
                     'deduction': deduction,
                     'severity': severity,
-                    'field': 'similarity'  # 添加字段信息
+                    'field': 'similarity'
                 })
                 break
         
@@ -425,12 +607,94 @@ class DeductionPolicyRecommender:
             )
             recommendations.append(recommendation)
         
-        # 排序并设置排名
-        recommendations.sort(key=lambda x: x.final_score, reverse=True)
-        for i, rec in enumerate(recommendations, 1):
-            rec.rank = i
+        # 应用硬性条件优先级排序
+        recommendations = self._apply_priority_rules(user_info, recommendations)
         
         return recommendations
+    
+    def _apply_priority_rules(self, user_info: Dict, recommendations: List[PolicyRecommendation]) -> List[PolicyRecommendation]:
+        """应用硬性条件优先级排序规则"""
+        print(f"\n🔝 检查硬性条件优先级...")
+        
+        # 定义硬性条件优先政策映射
+        priority_rules = {
+            '当地缴纳社保': ['POL0001'],  # 最高优先级
+            '征地人员': ['POL0004'],
+            '困难人员': ['POL0006', 'POL0009']  # 按顺序排列
+        }
+        
+        # 检查用户符合的硬性条件
+        matched_conditions = []
+        for condition, policy_ids in priority_rules.items():
+            user_value = user_info.get(condition, '否')
+            if user_value == '是':
+                matched_conditions.append((condition, policy_ids))
+                print(f"   ✅ 检测到硬性条件: {condition} = 是")
+        
+        if not matched_conditions:
+            print(f"   📋 无硬性条件匹配，使用常规得分排序")
+            # 常规排序：按得分降序
+            recommendations.sort(key=lambda x: x.final_score, reverse=True)
+            for i, rec in enumerate(recommendations, 1):
+                rec.rank = i
+            return recommendations
+        
+        # 收集所有优先政策ID，按规则顺序排列
+        priority_policy_ids = []
+        for condition, policy_ids in matched_conditions:
+            for policy_id in policy_ids:
+                if policy_id not in priority_policy_ids:
+                    priority_policy_ids.append(policy_id)
+        
+        print(f"   🎯 优先政策序列: {priority_policy_ids}")
+        
+        # 分离优先政策和普通政策
+        priority_recommendations = []
+        normal_recommendations = []
+        
+        # 创建推荐政策ID映射
+        rec_by_id = {rec.policy_id: rec for rec in recommendations}
+        
+        # 按优先级顺序添加优先政策
+        for policy_id in priority_policy_ids:
+            if policy_id in rec_by_id:
+                priority_rec = rec_by_id[policy_id]
+                # 修改推荐理由，说明优先原因
+                original_reason = priority_rec.recommendation_reason
+                priority_reason = self._get_priority_reason(user_info, policy_id)
+                priority_rec.recommendation_reason = f"🔝 {priority_reason} {original_reason}"
+                priority_recommendations.append(priority_rec)
+                print(f"   ⭐ 优先推荐: {policy_id} - {priority_rec.policy_title}")
+        
+        # 添加其他政策（按得分排序）
+        for rec in recommendations:
+            if rec.policy_id not in priority_policy_ids:
+                normal_recommendations.append(rec)
+        
+        # 对普通推荐按得分排序
+        normal_recommendations.sort(key=lambda x: x.final_score, reverse=True)
+        
+        # 合并结果：优先政策在前，普通政策在后
+        final_recommendations = priority_recommendations + normal_recommendations
+        
+        # 重新设置排名
+        for i, rec in enumerate(final_recommendations, 1):
+            rec.rank = i
+        
+        print(f"   📊 排序结果: {len(priority_recommendations)}个优先政策 + {len(normal_recommendations)}个常规政策")
+        
+        return final_recommendations
+    
+    def _get_priority_reason(self, user_info: Dict, policy_id: str) -> str:
+        """获取优先推荐的原因说明"""
+        priority_reasons = {
+            'POL0001': '当地社保缴纳优先！',
+            'POL0004': '征地人员专享政策！', 
+            'POL0006': '困难人员帮扶政策！',
+            'POL0009': '困难人员配套政策！'
+        }
+        
+        return priority_reasons.get(policy_id, '特殊条件匹配！')
     
     # 辅助方法
     def _get_policy_text(self, policy_data: Dict) -> str:
@@ -653,12 +917,26 @@ class DeductionPolicyRecommender:
         # 报告头部
         report.extend([
             "=" * 80,
-            f"政策推荐报告（扣分制）- 用户ID: {user_id}",
+            f"政策推荐报告（扣分制 + 硬性条件优先）- 用户ID: {user_id}",
             "=" * 80,
             f"生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
-            f"推荐算法: 扣分制评分（规则权重{self.weights['rule_weight']:.1%} + 相似度权重{self.weights['similarity_weight']:.1%}）",
+            f"推荐算法: 扣分制评分（规则权重{self.weights['rule_weight']:.1%} + 相似度权重{self.weights['similarity_weight']:.1%}）+ 硬性条件优先级",
             ""
         ])
+        
+        # 硬性条件检查结果
+        priority_conditions = self._check_priority_conditions(user_info)
+        if priority_conditions:
+            report.extend([
+                "🔝 硬性条件优先级检查",
+                "-" * 40
+            ])
+            for condition, status, policies in priority_conditions:
+                status_icon = "✅" if status else "❌"
+                report.append(f"  {status_icon} {condition}: {user_info.get(condition, '否')}")
+                if status and policies:
+                    report.append(f"     优先推荐政策: {', '.join(policies)}")
+            report.append("")
         
         # 政策过滤信息
         if total_policies:
@@ -677,14 +955,20 @@ class DeductionPolicyRecommender:
         report.append("👤 用户基本信息")
         report.append("-" * 40)
         
-        basic_fields = ['最高学历', '专业', '工作年限', '籍贯', '征地人员', '困难人员', '残疾人', '退役军人']
+        basic_fields = ['最高学历', '专业', '工作年限', '籍贯', '当地缴纳社保', '征地人员', '困难人员', '残疾人', '退役军人']
         for field in basic_fields:
-            if field in user_info:
-                value = user_info[field]
-                if field in ['征地人员', '困难人员', '残疾人', '退役军人'] and value == '是':
-                    icons = {'征地人员': '🏗️', '困难人员': '🆘', '残疾人': '♿', '退役军人': '🎖️'}
-                    value = f"{icons.get(field, '')} {value}"
-                report.append(f"  {field}: {value}")
+            # 确保显示所有字段，即使值为空或默认值
+            value = user_info.get(field, '否' if field in ['当地缴纳社保', '征地人员', '困难人员', '残疾人', '退役军人'] else '未知')
+            
+            # 为硬性条件添加特殊标识
+            if field in ['当地缴纳社保', '征地人员', '困难人员'] and value == '是':
+                icons = {'当地缴纳社保': '🏛️', '征地人员': '🏗️', '困难人员': '🆘'}
+                value = f"{icons.get(field, '')} {value} 【优先条件】"
+            elif field in ['残疾人', '退役军人'] and value == '是':
+                icons = {'残疾人': '♿', '退役军人': '🎖️'}
+                value = f"{icons.get(field, '')} {value}"
+            
+            report.append(f"  {field}: {value}")
         
         # 工作经历
         if '工作经历' in user_info and user_info['工作经历']:
@@ -708,6 +992,10 @@ class DeductionPolicyRecommender:
             ])
             return "\n".join(report)
         
+        # 统计优先推荐和常规推荐
+        priority_count = len([r for r in recommendations if '🔝' in r.recommendation_reason])
+        normal_count = total - priority_count
+        
         stats = {level: len([r for r in recommendations if r.match_level == level]) 
                 for level in ['高度匹配', '中度匹配', '低度匹配', '需改进']}
         
@@ -715,6 +1003,9 @@ class DeductionPolicyRecommender:
             "📊 推荐统计",
             "-" * 40,
             f"  适用政策数: {total}",
+            f"  🔝 优先推荐: {priority_count} (硬性条件匹配)",
+            f"  📋 常规推荐: {normal_count} (得分排序)",
+            "",
             f"  🟢 高度匹配: {stats['高度匹配']} ({stats['高度匹配']/total:.1%})",
             f"  🟡 中度匹配: {stats['中度匹配']} ({stats['中度匹配']/total:.1%})",
             f"  🟠 低度匹配: {stats['低度匹配']} ({stats['低度匹配']/total:.1%})",
@@ -729,7 +1020,7 @@ class DeductionPolicyRecommender:
         
         # 详细推荐结果
         report.extend([
-            "🎯 详细推荐结果（按匹配度排序）",
+            "🎯 详细推荐结果（优先级 + 匹配度排序）",
             "=" * 80
         ])
         
@@ -737,8 +1028,10 @@ class DeductionPolicyRecommender:
         
         for rec in recommendations[:10]:  # 只显示前10个
             icon = level_icons.get(rec.match_level, '⚪')
+            priority_mark = "【优先】" if '🔝' in rec.recommendation_reason else ""
+            
             report.extend([
-                f"#{rec.rank} {icon} {rec.policy_id} | 得分: {rec.final_score:.1f} | {rec.match_level}",
+                f"#{rec.rank} {icon} {rec.policy_id} {priority_mark} | 得分: {rec.final_score:.1f} | {rec.match_level}",
                 f"   标题: {rec.policy_title}",
                 f"   推荐理由: {rec.recommendation_reason}",
                 f"   政策福利: {' | '.join(rec.benefits[:3])}"
@@ -763,6 +1056,22 @@ class DeductionPolicyRecommender:
         
         return "\n".join(report)
     
+    def _check_priority_conditions(self, user_info: Dict) -> List[Tuple[str, bool, List[str]]]:
+        """检查硬性条件优先级"""
+        priority_rules = {
+            '当地缴纳社保': ['POL0001'],
+            '征地人员': ['POL0004'],
+            '困难人员': ['POL0006', 'POL0009']
+        }
+        
+        results = []
+        for condition, policy_ids in priority_rules.items():
+            user_value = user_info.get(condition, '否')
+            is_matched = user_value == '是'
+            results.append((condition, is_matched, policy_ids if is_matched else []))
+        
+        return results
+    
     def _generate_suggestions(self, recommendations: List[PolicyRecommendation], user_info: Dict) -> List[str]:
         """生成改进建议"""
         suggestions = []
@@ -771,7 +1080,6 @@ class DeductionPolicyRecommender:
         field_counts = {}
         for rec in recommendations:
             for deduction in rec.deduction_score.rule_deductions:
-                # 现在可以安全地访问field字段了
                 field = deduction.get('field', '')
                 if field:
                     field_counts[field] = field_counts.get(field, 0) + 1
@@ -853,9 +1161,11 @@ def main():
     print("1. 单用户推荐示例")
     print("2. 批量推荐所有用户")
     print("3. 查看数据统计")
+    print("4. 🔑 提取政策关键词")
+    print("5. 🔍 查看单个政策关键词详情")
     
     try:
-        choice = input("\n请选择 (1-3): ").strip()
+        choice = input("\n请选择 (1-5): ").strip()
         
         if choice == '1':
             user_info = users[0]
@@ -893,6 +1203,84 @@ def main():
                 education = user.get('最高学历', 'Unknown')
                 major = user.get('专业', 'Unknown')
                 print(f"   {i}. {user_id} - {education} - {major}")
+        
+        elif choice == '4':
+            print(f"\n🔑 开始提取所有政策关键词...")
+            
+            # 询问输出格式
+            format_choice = input("选择输出格式 (1-文本报告 / 2-JSON数据 / 3-两者都要): ").strip()
+            
+            output_files = []
+            if format_choice in ['1', '3']:
+                output_files.append(f"policy_keywords_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt")
+            if format_choice in ['2', '3']:
+                output_files.append(f"policy_keywords_data_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json")
+            
+            # 提取关键词
+            for output_file in output_files:
+                keywords_list = recommender.extract_keywords_from_policies(policies, output_file)
+            
+            # 显示统计摘要
+            if keywords_list:
+                summary = recommender.generate_keywords_summary(keywords_list)
+                print("\n" + "="*60)
+                print(summary)
+                print("="*60)
+        
+        elif choice == '5':
+            print(f"\n🔍 查看单个政策关键词详情")
+            print("可用政策:")
+            for i, policy in enumerate(policies[:10], 1):
+                policy_id = policy.get('政策编号', f'Policy_{i}')
+                title = policy.get('标题', 'Unknown')[:50] + ('...' if len(policy.get('标题', '')) > 50 else '')
+                print(f"   {i}. {policy_id} - {title}")
+            
+            try:
+                index = int(input(f"\n请选择政策编号 (1-{min(10, len(policies))}): ")) - 1
+                if 0 <= index < len(policies):
+                    selected_policy = policies[index]
+                    print(f"\n🔍 正在分析政策: {selected_policy.get('政策编号', 'Unknown')}")
+                    
+                    keywords = recommender.keyword_extractor.extract_keywords_from_policy(selected_policy)
+                    
+                    # 显示详细信息
+                    print("\n" + "="*60)
+                    print(f"政策编号: {keywords.policy_id}")
+                    print(f"标题: {keywords.title}")
+                    print(f"提取时间: {keywords.extracted_time}")
+                    print("-" * 60)
+                    
+                    print(f"\n🔑 核心关键词 (Top 15):")
+                    for i, (kw, score) in enumerate(list(keywords.keyword_scores.items())[:15], 1):
+                        print(f"   {i:2d}. {kw:<15} (权重: {score:.4f})")
+                    
+                    if keywords.benefit_keywords:
+                        print(f"\n💰 福利关键词: {', '.join(keywords.benefit_keywords)}")
+                    
+                    if keywords.condition_keywords:
+                        print(f"\n📋 条件关键词: {', '.join(keywords.condition_keywords)}")
+                    
+                    if keywords.target_group_keywords:
+                        print(f"\n🎯 目标群体: {', '.join(keywords.target_group_keywords)}")
+                    
+                    if keywords.entities:
+                        print(f"\n🏢 实体词: {', '.join(keywords.entities)}")
+                    
+                    print("="*60)
+                    
+                    # 询问是否保存
+                    save_choice = input(f"\n是否保存该政策的关键词分析? (y/n): ").strip().lower()
+                    if save_choice == 'y':
+                        filename = f"keywords_analysis_{keywords.policy_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+                        with open(filename, 'w', encoding='utf-8') as f:
+                            json.dump(asdict(keywords), f, ensure_ascii=False, indent=2)
+                        print(f"✅ 关键词分析已保存为: {filename}")
+                
+                else:
+                    print("❌ 无效的政策编号")
+                    
+            except ValueError:
+                print("❌ 请输入有效的数字")
         
         else:
             print("❌ 无效选择")
