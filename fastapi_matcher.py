@@ -295,9 +295,9 @@ async def batch_recommend(users: List[UserData], policies: List[PolicyData]):
 if __name__ == "__main__":
     # 启动服务器
     uvicorn.run(
-        "fastapi_recommendation_service:app",
-        host="0.0.0.0",
-        port=8000,
-        reload=True,
+        app,  # 直接传入app对象
+        host="127.0.0.1",
+        port=8081,
+        reload=False,
         log_level="info"
     )

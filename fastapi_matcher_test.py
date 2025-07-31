@@ -1,63 +1,87 @@
 import requests
 import json
+import time
 
-# API服务地址
-BASE_URL = "http://localhost:8000"
+# API服务地址 - 使用实际工作的端口8081
+BASE_URL = "http://127.0.0.1:8081"
+
+def check_service_status():
+    """检查服务是否可用"""
+    print("🔍 检查服务状态...")
+    print(f"   目标地址: {BASE_URL}")
+    try:
+        response = requests.get(f"{BASE_URL}/", timeout=5)
+        if response.status_code == 200:
+            print(f"✅ 服务运行正常: {response.json()}")
+            return True
+        else:
+            print(f"⚠️ 服务响应异常: {response.status_code}")
+            return False
+    except requests.exceptions.ConnectionError as e:
+        print(f"❌ 无法连接到服务 {BASE_URL}")
+        print(f"   详细错误: {e}")
+        print("请确保FastAPI服务已启动，并检查端口号是否正确")
+        return False
+    except Exception as e:
+        print(f"❌ 连接出错: {e}")
+        return False
 
 def test_single_recommendation():
     """测试单个推荐接口"""
-    print("🧪 测试单个政策推荐...")
+    print("\n🧪 测试单个政策推荐...")
     
-    # 示例用户数据
-    user_data = {
-        "用户ID": "U0001",
-        "最高学历": "本科",
-        "毕业时间": 5,
-        "籍贯": "浙江省平湖市",
-        "专业": "计算机科学与技术",
-        "技能等级": "高级专业技术职务",
-        "征地人员": "否",
-        "缴纳社保": "是",
-        "养老保险": "是",
-        "困难人员": "否",
-        "就业类型": "受雇就业",
-        "年龄": 25
-    }
-    
-    # 示例政策数据
-    policy_data = {
-        "政策编号": "POL0001",
-        "标题": "高校毕业生社保补贴（灵活就业）",
-        "条件": {
-            "逻辑": "AND",
-            "规则": [
-                {
-                    "字段": "毕业时间",
-                    "操作符": "<=",
-                    "值": "2",
-                    "描述": "2年以内"
-                },
-                {
-                    "字段": "就业类型",
-                    "操作符": "=",
-                    "值": "灵活就业",
-                    "描述": "灵活就业"
-                },
-                {
-                    "字段": "养老保险",
-                    "操作符": "=",
-                    "值": "是",
-                    "描述": "养老保险"
-                }
-            ]
+    # 示例数据
+    request_data = {
+        "user": {
+            "用户ID": "U0001",
+            "最高学历": "本科",
+            "毕业时间": 5,
+            "籍贯": "浙江省平湖市",
+            "专业": "计算机科学与技术",
+            "技能等级": "高级专业技术职务",
+            "征地人员": "否",
+            "缴纳社保": "是",
+            "养老保险": "是",
+            "困难人员": "否",
+            "就业类型": "受雇就业",
+            "年龄": 25
         },
-        "类型": "个人"
+        "policy": {
+            "政策编号": "POL0001",
+            "标题": "高校毕业生社保补贴（灵活就业）",
+            "条件": {
+                "逻辑": "AND",
+                "规则": [
+                    {
+                        "字段": "毕业时间",
+                        "操作符": "<=",
+                        "值": "2",
+                        "描述": "2年以内"
+                    },
+                    {
+                        "字段": "就业类型",
+                        "操作符": "=",
+                        "值": "灵活就业",
+                        "描述": "灵活就业"
+                    },
+                    {
+                        "字段": "养老保险",
+                        "操作符": "=",
+                        "值": "是",
+                        "描述": "养老保险"
+                    }
+                ]
+            },
+            "类型": "个人"
+        }
     }
     
     try:
         response = requests.post(
             f"{BASE_URL}/recommend-single",
-            json={"user": user_data, "policy": policy_data}
+            json=request_data,
+            headers={"Content-Type": "application/json"},
+            timeout=10
         )
         
         if response.status_code == 200:
@@ -69,6 +93,8 @@ def test_single_recommendation():
             print(f"❌ 请求失败: {response.status_code}")
             print(f"   错误信息: {response.text}")
             
+    except requests.exceptions.Timeout:
+        print("❌ 请求超时")
     except requests.exceptions.RequestException as e:
         print(f"❌ 网络请求错误: {e}")
 
@@ -76,67 +102,63 @@ def test_multiple_policies_recommendation():
     """测试多政策推荐接口"""
     print("\n🧪 测试多政策推荐...")
     
-    # 示例用户数据
-    user_data = {
-        "用户ID": "U0001",
-        "最高学历": "本科",
-        "毕业时间": 1,
-        "就业类型": "未就业",
-        "养老保险": "是",
-        "年龄": 22
-    }
-    
-    # 多个政策数据
-    policies_data = [
-        {
-            "政策编号": "POL0001",
-            "标题": "高校毕业生社保补贴（灵活就业）",
-            "条件": {
-                "逻辑": "AND",
-                "规则": [
-                    {"字段": "毕业时间", "操作符": "<=", "值": "2", "描述": "2年以内"},
-                    {"字段": "就业类型", "操作符": "=", "值": "灵活就业", "描述": "灵活就业"},
-                    {"字段": "养老保险", "操作符": "=", "值": "是", "描述": "养老保险"}
-                ]
-            },
-            "类型": "个人"
-        },
-        {
-            "政策编号": "POL0008",
-            "标题": "就业见习补贴",
-            "条件": {
-                "逻辑": "OR",
-                "规则": [
-                    {
-                        "逻辑": "AND",
-                        "规则": [
-                            {"字段": "毕业时间", "操作符": "<=", "值": "2年", "描述": "毕业2年以内"},
-                            {"字段": "就业类型", "操作符": "=", "值": "未就业", "描述": "尚未就业"}
-                        ]
-                    },
-                    {
-                        "逻辑": "AND", 
-                        "规则": [
-                            {"字段": "年龄", "操作符": "between", "值": [16, 24], "描述": "16-24岁"},
-                            {"字段": "就业类型", "操作符": "=", "值": "未就业", "描述": "失业青年"}
-                        ]
-                    }
-                ]
-            },
-            "类型": "个人"
-        }
-    ]
-    
     # 构建请求数据
     request_data = {
-        "user": user_data,
-        "policies": policies_data
+        "user": {
+            "用户ID": "U0001",
+            "最高学历": "本科",
+            "毕业时间": 1,
+            "就业类型": "未就业",
+            "养老保险": "是",
+            "年龄": 22
+        },
+        "policies": [
+            {
+                "政策编号": "POL0001",
+                "标题": "高校毕业生社保补贴（灵活就业）",
+                "条件": {
+                    "逻辑": "AND",
+                    "规则": [
+                        {"字段": "毕业时间", "操作符": "<=", "值": "2", "描述": "2年以内"},
+                        {"字段": "就业类型", "操作符": "=", "值": "灵活就业", "描述": "灵活就业"},
+                        {"字段": "养老保险", "操作符": "=", "值": "是", "描述": "养老保险"}
+                    ]
+                },
+                "类型": "个人"
+            },
+            {
+                "政策编号": "POL0008",
+                "标题": "就业见习补贴",
+                "条件": {
+                    "逻辑": "OR",
+                    "规则": [
+                        {
+                            "逻辑": "AND",
+                            "规则": [
+                                {"字段": "毕业时间", "操作符": "<=", "值": "2年", "描述": "毕业2年以内"},
+                                {"字段": "就业类型", "操作符": "=", "值": "未就业", "描述": "尚未就业"}
+                            ]
+                        },
+                        {
+                            "逻辑": "AND", 
+                            "规则": [
+                                {"字段": "年龄", "操作符": "between", "值": [16, 24], "描述": "16-24岁"},
+                                {"字段": "就业类型", "操作符": "=", "值": "未就业", "描述": "失业青年"}
+                            ]
+                        }
+                    ]
+                },
+                "类型": "个人"
+            }
+        ]
     }
     
     try:
         response = requests.post(
             f"{BASE_URL}/recommend",
-            json=request_data
+            json=request_data,
+            headers={"Content-Type": "application/json"},
+            timeout=10
         )
         
         if response.status_code == 200:
@@ -152,8 +174,32 @@ def test_multiple_policies_recommendation():
             print(f"❌ 请求失败: {response.status_code}")
             print(f"   错误信息: {response.text}")
             
+    except requests.exceptions.Timeout:
+        print("❌ 请求超时")
     except requests.exceptions.RequestException as e:
         print(f"❌ 网络请求错误: {e}")
+
+def test_health_check():
+    """测试健康检查接口"""
+    print("\n🩺 测试健康检查...")
+    
+    try:
+        response = requests.get(f"{BASE_URL}/health", timeout=5)
+        
+        if response.status_code == 200:
+            result = response.json()
+            print(f"✅ 服务健康: {result['status']}")
+            return True
+        else:
+            print(f"❌ 健康检查失败: {response.status_code}")
+            return False
+            
+    except requests.exceptions.Timeout:
+        print("❌ 健康检查超时")
+        return False
+    except requests.exceptions.RequestException as e:
+        print(f"❌ 无法连接到服务: {e}")
+        return False
 
 def test_batch_recommendation():
     """测试批量推荐接口"""
@@ -197,7 +243,9 @@ def test_batch_recommendation():
     try:
         response = requests.post(
             f"{BASE_URL}/batch-recommend",
-            json={"users": users_data, "policies": policies_data}
+            json={"users": users_data, "policies": policies_data},
+            headers={"Content-Type": "application/json"},
+            timeout=10
         )
         
         if response.status_code == 200:
@@ -215,39 +263,36 @@ def test_batch_recommendation():
             print(f"❌ 请求失败: {response.status_code}")
             print(f"   错误信息: {response.text}")
             
+    except requests.exceptions.Timeout:
+        print("❌ 请求超时")
     except requests.exceptions.RequestException as e:
         print(f"❌ 网络请求错误: {e}")
-
-def test_health_check():
-    """测试健康检查接口"""
-    print("\n🩺 测试健康检查...")
-    
-    try:
-        response = requests.get(f"{BASE_URL}/health")
-        
-        if response.status_code == 200:
-            result = response.json()
-            print(f"✅ 服务健康: {result['status']}")
-        else:
-            print(f"❌ 健康检查失败: {response.status_code}")
-            
-    except requests.exceptions.RequestException as e:
-        print(f"❌ 无法连接到服务: {e}")
 
 if __name__ == "__main__":
     print("🚀 政策推荐API测试客户端")
     print("=" * 50)
     
+    # 首先检查服务状态
+    if not check_service_status():
+        print("\n💡 解决建议:")
+        print("1. 确认FastAPI服务已启动")
+        print("2. 检查端口号是否正确（当前设置: 8001）")
+        print("3. 如果使用其他端口，请修改 BASE_URL")
+        print("4. 确认防火墙没有阻止连接")
+        exit(1)
+    
+    # 等待一下确保服务完全启动
+    print("\n⏳ 等待服务完全启动...")
+    time.sleep(2)
+    
     # 测试健康检查
-    test_health_check()
+    if not test_health_check():
+        print("❌ 健康检查失败，停止测试")
+        exit(1)
     
-    # 测试单个推荐
+    # 测试推荐功能
     test_single_recommendation()
-    
-    # 测试多政策推荐
     test_multiple_policies_recommendation()
-    
-    # 测试批量推荐
     test_batch_recommendation()
     
     print(f"\n📚 更多API文档请访问: {BASE_URL}/docs")
