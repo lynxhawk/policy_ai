@@ -13,8 +13,8 @@ from typing import List, Dict, Any
 
 # 导入子模块
 try:
-    from keyword_extractor import PolicyKeywordExtractor
-    from enhanced_matcher import EnhancedPolicyMatcher
+    from other.keyword_extractor import PolicyKeywordExtractor
+    from other.enhanced_matcher import EnhancedPolicyMatcher
 except ImportError as e:
     print(f"❌ 模块导入失败: {e}")
     print("请确保以下文件存在:")
