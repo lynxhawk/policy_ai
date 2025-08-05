@@ -1,0 +1,336 @@
+{
+  "test_summary": {
+    "test_time": "2025-08-05T11:24:36.198918",
+    "total_api_tests": 5,
+    "successful_api_tests": 5,
+    "failed_api_tests": 0,
+    "api_success_rate": 100.0,
+    "performance_tests_count": 1,
+    "accuracy_tests_count": 0,
+    "match_matrix_generated": true
+  },
+  "detailed_results": {
+    "api_tests": [
+      {
+        "test_name": "健康检查",
+        "endpoint": "/health",
+        "method": "GET",
+        "status_code": 200,
+        "response_time": 6.26,
+        "success": true,
+        "response_data": {
+          "status": "healthy",
+          "service": "政策推荐系统",
+          "type_safety": "enabled",
+          "architecture": "modular"
+        },
+        "timestamp": "2025-08-05T11:24:26.649808"
+      },
+      {
+        "test_name": "批量推荐（单用户多政策）",
+        "endpoint": "/recommend",
+        "method": "POST",
+        "user_id": "U0001",
+        "policy_count": 8,
+        "status_code": 200,
+        "response_time": 9.61,
+        "success": true,
+        "timestamp": "2025-08-05T11:24:35.806862",
+        "match_scores": [
+          0.3,
+          0.3,
+          0.0,
+          0.0,
+          0.2,
+          1.0,
+          0.5,
+          0.0
+        ],
+        "avg_score": 0.29,
+        "max_score": 1.0,
+        "min_score": 0.0,
+        "policy_results": [
+          {
+            "policy_id": "POL0001",
+            "policy_title": "高校毕业生社保补贴（灵活就业）",
+            "match_score": 0.3
+          },
+          {
+            "policy_id": "POL0002",
+            "policy_title": "高校毕业生就业补贴",
+            "match_score": 0.3
+          },
+          {
+            "policy_id": "POL0003",
+            "policy_title": "高校毕业生临时生活补贴",
+            "match_score": 0.0
+          },
+          {
+            "policy_id": "POL0004",
+            "policy_title": "求职创业补贴",
+            "match_score": 0.0
+          },
+          {
+            "policy_id": "POL0005",
+            "policy_title": "就业困难人员社保补贴（灵活就业）",
+            "match_score": 0.2
+          },
+          {
+            "policy_id": "POL0006",
+            "policy_title": "高校毕业生特定行业就业补贴",
+            "match_score": 1.0
+          },
+          {
+            "policy_id": "POL0007",
+            "policy_title": "公益性岗位补贴",
+            "match_score": 0.5
+          },
+          {
+            "policy_id": "POL0008",
+            "policy_title": "就业见习补贴",
+            "match_score": 0.0
+          }
+        ]
+      },
+      {
+        "test_name": "批量推荐（单用户多政策）",
+        "endpoint": "/recommend",
+        "method": "POST",
+        "user_id": "U0002",
+        "policy_count": 8,
+        "status_code": 200,
+        "response_time": 9.65,
+        "success": true,
+        "timestamp": "2025-08-05T11:24:35.923970",
+        "match_scores": [
+          0.3,
+          0.3,
+          0.0,
+          0.0,
+          0.2,
+          1.0,
+          0.5,
+          0.0
+        ],
+        "avg_score": 0.29,
+        "max_score": 1.0,
+        "min_score": 0.0,
+        "policy_results": [
+          {
+            "policy_id": "POL0001",
+            "policy_title": "高校毕业生社保补贴（灵活就业）",
+            "match_score": 0.3
+          },
+          {
+            "policy_id": "POL0002",
+            "policy_title": "高校毕业生就业补贴",
+            "match_score": 0.3
+          },
+          {
+            "policy_id": "POL0003",
+            "policy_title": "高校毕业生临时生活补贴",
+            "match_score": 0.0
+          },
+          {
+            "policy_id": "POL0004",
+            "policy_title": "求职创业补贴",
+            "match_score": 0.0
+          },
+          {
+            "policy_id": "POL0005",
+            "policy_title": "就业困难人员社保补贴（灵活就业）",
+            "match_score": 0.2
+          },
+          {
+            "policy_id": "POL0006",
+            "policy_title": "高校毕业生特定行业就业补贴",
+            "match_score": 1.0
+          },
+          {
+            "policy_id": "POL0007",
+            "policy_title": "公益性岗位补贴",
+            "match_score": 0.5
+          },
+          {
+            "policy_id": "POL0008",
+            "policy_title": "就业见习补贴",
+            "match_score": 0.0
+          }
+        ]
+      },
+      {
+        "test_name": "批量推荐（单用户多政策）",
+        "endpoint": "/recommend",
+        "method": "POST",
+        "user_id": "U0003",
+        "policy_count": 8,
+        "status_code": 200,
+        "response_time": 24.25,
+        "success": true,
+        "timestamp": "2025-08-05T11:24:36.062559",
+        "match_scores": [
+          0.3,
+          0.3,
+          0.3,
+          0.5,
+          0.4,
+          0.5,
+          1.0,
+          0.0
+        ],
+        "avg_score": 0.41,
+        "max_score": 1.0,
+        "min_score": 0.0,
+        "policy_results": [
+          {
+            "policy_id": "POL0001",
+            "policy_title": "高校毕业生社保补贴（灵活就业）",
+            "match_score": 0.3
+          },
+          {
+            "policy_id": "POL0002",
+            "policy_title": "高校毕业生就业补贴",
+            "match_score": 0.3
+          },
+          {
+            "policy_id": "POL0003",
+            "policy_title": "高校毕业生临时生活补贴",
+            "match_score": 0.3
+          },
+          {
+            "policy_id": "POL0004",
+            "policy_title": "求职创业补贴",
+            "match_score": 0.5
+          },
+          {
+            "policy_id": "POL0005",
+            "policy_title": "就业困难人员社保补贴（灵活就业）",
+            "match_score": 0.4
+          },
+          {
+            "policy_id": "POL0006",
+            "policy_title": "高校毕业生特定行业就业补贴",
+            "match_score": 0.5
+          },
+          {
+            "policy_id": "POL0007",
+            "policy_title": "公益性岗位补贴",
+            "match_score": 1.0
+          },
+          {
+            "policy_id": "POL0008",
+            "policy_title": "就业见习补贴",
+            "match_score": 0.0
+          }
+        ]
+      },
+      {
+        "test_name": "多用户批量推荐",
+        "endpoint": "/batch-recommend",
+        "method": "POST",
+        "user_count": 10,
+        "policy_count": 8,
+        "status_code": 200,
+        "response_time": 41.04,
+        "success": true,
+        "timestamp": "2025-08-05T11:24:36.104633",
+        "total_scores": 80,
+        "expected_scores": 80,
+        "scores_complete": true,
+        "avg_score": 0.33,
+        "score_std": 0.29
+      }
+    ],
+    "performance_tests": [
+      {
+        "test_name": "性能测试",
+        "concurrent_requests": 3,
+        "iterations": 3,
+        "total_requests": 9,
+        "successful_requests": 9,
+        "failed_requests": 0,
+        "success_rate": 100.0,
+        "avg_response_time": 19.72,
+        "min_response_time": 11.36,
+        "max_response_time": 28.5,
+        "p95_response_time": 27.71,
+        "p99_response_time": 28.34,
+        "std_response_time": 5.83,
+        "total_test_time": 90.54,
+        "requests_per_second": 99.4,
+        "timestamp": "2025-08-05T11:24:36.197608"
+      }
+    ],
+    "accuracy_tests": [],
+    "parameter_tuning": []
+  },
+  "match_matrix_summary": {
+    "total_matches": 80,
+    "overall_avg_score": 0.3037,
+    "overall_std_score": 0.2839,
+    "high_match_rate": 8.75,
+    "perfect_match_count": 7,
+    "user_statistics": [
+      {
+        "user_id": "U0001",
+        "avg_score": 0.2875,
+        "max_score": 1.0,
+        "high_matches": 1
+      },
+      {
+        "user_id": "U0002",
+        "avg_score": 0.2875,
+        "max_score": 1.0,
+        "high_matches": 1
+      },
+      {
+        "user_id": "U0003",
+        "avg_score": 0.4125,
+        "max_score": 1.0,
+        "high_matches": 1
+      },
+      {
+        "user_id": "U0004",
+        "avg_score": 0.2125,
+        "max_score": 0.5,
+        "high_matches": 0
+      },
+      {
+        "user_id": "U0005",
+        "avg_score": 0.4125,
+        "max_score": 1.0,
+        "high_matches": 1
+      },
+      {
+        "user_id": "U0006",
+        "avg_score": 0.475,
+        "max_score": 1.0,
+        "high_matches": 2
+      },
+      {
+        "user_id": "U0007",
+        "avg_score": 0.0125,
+        "max_score": 0.1,
+        "high_matches": 0
+      },
+      {
+        "user_id": "U0008",
+        "avg_score": 0.3125,
+        "max_score": 0.5,
+        "high_matches": 0
+      },
+      {
+        "user_id": "U0009",
+        "avg_score": 0.4125,
+        "max_score": 1.0,
+        "high_matches": 1
+      },
+      {
+        "user_id": "U0010",
+        "avg_score": 0.2125,
+        "max_score": 0.5,
+        "high_matches": 0
+      }
+    ]
+  }
+}
