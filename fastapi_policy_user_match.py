@@ -44,6 +44,7 @@ class LogicEnum(str, Enum):
     """逻辑关系枚举"""
     AND = "AND"
     OR = "OR"
+    NOT = "NOT"
 
 class OperatorEnum(str, Enum):
     """操作符枚举"""
@@ -481,9 +482,9 @@ if __name__ == "__main__":
     print("按 Ctrl+C 停止服务")
     
     uvicorn.run(
-        app,
+        "__main__:app",  # 使用导入字符串而不是app对象
         host="10.1.50.96",
         port=8081,
-        reload=False,
+        reload=True,
         log_level="info"
     )
