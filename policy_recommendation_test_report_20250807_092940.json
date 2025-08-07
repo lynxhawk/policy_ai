@@ -1,0 +1,576 @@
+{
+  "test_summary": {
+    "test_time": "2025-08-07T09:29:40.335262",
+    "total_api_tests": 5,
+    "successful_api_tests": 5,
+    "failed_api_tests": 0,
+    "api_success_rate": 100.0,
+    "performance_tests_count": 1,
+    "accuracy_tests_count": 0,
+    "match_matrix_generated": true
+  },
+  "detailed_results": {
+    "api_tests": [
+      {
+        "test_name": "健康检查",
+        "endpoint": "/health",
+        "method": "GET",
+        "status_code": 200,
+        "response_time": 7.0,
+        "success": true,
+        "response_data": {
+          "status": "healthy",
+          "service": "政策推荐系统（宽容版）",
+          "tolerance": "maximum",
+          "error_handling": "graceful"
+        },
+        "timestamp": "2025-08-07T09:28:52.803605"
+      },
+      {
+        "test_name": "批量推荐（单用户多政策）",
+        "endpoint": "/recommend",
+        "method": "POST",
+        "user_id": "U0001",
+        "policy_count": 8,
+        "status_code": 200,
+        "response_time": 5.97,
+        "success": true,
+        "timestamp": "2025-08-07T09:29:39.938772",
+        "match_scores": [
+          0.33,
+          0.33,
+          0.0,
+          0.0,
+          0.25,
+          1.0,
+          0.5,
+          0.0
+        ],
+        "avg_score": 0.3,
+        "max_score": 1.0,
+        "min_score": 0.0,
+        "policy_results": [
+          {
+            "policy_id": "POL0001",
+            "policy_title": "高校毕业生社保补贴（灵活就业）",
+            "match_score": 0.33
+          },
+          {
+            "policy_id": "POL0002",
+            "policy_title": "高校毕业生就业补贴",
+            "match_score": 0.33
+          },
+          {
+            "policy_id": "POL0003",
+            "policy_title": "高校毕业生临时生活补贴",
+            "match_score": 0.0
+          },
+          {
+            "policy_id": "POL0004",
+            "policy_title": "求职创业补贴",
+            "match_score": 0.0
+          },
+          {
+            "policy_id": "POL0005",
+            "policy_title": "就业困难人员社保补贴（灵活就业）",
+            "match_score": 0.25
+          },
+          {
+            "policy_id": "POL0006",
+            "policy_title": "高校毕业生特定行业就业补贴",
+            "match_score": 1.0
+          },
+          {
+            "policy_id": "POL0007",
+            "policy_title": "公益性岗位补贴",
+            "match_score": 0.5
+          },
+          {
+            "policy_id": "POL0008",
+            "policy_title": "就业见习补贴",
+            "match_score": 0.0
+          }
+        ]
+      },
+      {
+        "test_name": "批量推荐（单用户多政策）",
+        "endpoint": "/recommend",
+        "method": "POST",
+        "user_id": "U0002",
+        "policy_count": 8,
+        "status_code": 200,
+        "response_time": 6.23,
+        "success": true,
+        "timestamp": "2025-08-07T09:29:40.051804",
+        "match_scores": [
+          0.33,
+          0.33,
+          0.0,
+          0.0,
+          0.25,
+          1.0,
+          0.5,
+          0.0
+        ],
+        "avg_score": 0.3,
+        "max_score": 1.0,
+        "min_score": 0.0,
+        "policy_results": [
+          {
+            "policy_id": "POL0001",
+            "policy_title": "高校毕业生社保补贴（灵活就业）",
+            "match_score": 0.33
+          },
+          {
+            "policy_id": "POL0002",
+            "policy_title": "高校毕业生就业补贴",
+            "match_score": 0.33
+          },
+          {
+            "policy_id": "POL0003",
+            "policy_title": "高校毕业生临时生活补贴",
+            "match_score": 0.0
+          },
+          {
+            "policy_id": "POL0004",
+            "policy_title": "求职创业补贴",
+            "match_score": 0.0
+          },
+          {
+            "policy_id": "POL0005",
+            "policy_title": "就业困难人员社保补贴（灵活就业）",
+            "match_score": 0.25
+          },
+          {
+            "policy_id": "POL0006",
+            "policy_title": "高校毕业生特定行业就业补贴",
+            "match_score": 1.0
+          },
+          {
+            "policy_id": "POL0007",
+            "policy_title": "公益性岗位补贴",
+            "match_score": 0.5
+          },
+          {
+            "policy_id": "POL0008",
+            "policy_title": "就业见习补贴",
+            "match_score": 0.0
+          }
+        ]
+      },
+      {
+        "test_name": "批量推荐（单用户多政策）",
+        "endpoint": "/recommend",
+        "method": "POST",
+        "user_id": "U0003",
+        "policy_count": 8,
+        "status_code": 200,
+        "response_time": 7.0,
+        "success": true,
+        "timestamp": "2025-08-07T09:29:40.162272",
+        "match_scores": [
+          0.33,
+          0.33,
+          0.33,
+          0.5,
+          0.38,
+          0.5,
+          1.0,
+          0.0
+        ],
+        "avg_score": 0.42,
+        "max_score": 1.0,
+        "min_score": 0.0,
+        "policy_results": [
+          {
+            "policy_id": "POL0001",
+            "policy_title": "高校毕业生社保补贴（灵活就业）",
+            "match_score": 0.33
+          },
+          {
+            "policy_id": "POL0002",
+            "policy_title": "高校毕业生就业补贴",
+            "match_score": 0.33
+          },
+          {
+            "policy_id": "POL0003",
+            "policy_title": "高校毕业生临时生活补贴",
+            "match_score": 0.33
+          },
+          {
+            "policy_id": "POL0004",
+            "policy_title": "求职创业补贴",
+            "match_score": 0.5
+          },
+          {
+            "policy_id": "POL0005",
+            "policy_title": "就业困难人员社保补贴（灵活就业）",
+            "match_score": 0.38
+          },
+          {
+            "policy_id": "POL0006",
+            "policy_title": "高校毕业生特定行业就业补贴",
+            "match_score": 0.5
+          },
+          {
+            "policy_id": "POL0007",
+            "policy_title": "公益性岗位补贴",
+            "match_score": 1.0
+          },
+          {
+            "policy_id": "POL0008",
+            "policy_title": "就业见习补贴",
+            "match_score": 0.0
+          }
+        ]
+      },
+      {
+        "test_name": "多用户批量推荐",
+        "endpoint": "/batch-recommend",
+        "method": "POST",
+        "user_count": 50,
+        "policy_count": 8,
+        "status_code": 200,
+        "response_time": 96.48,
+        "success": true,
+        "timestamp": "2025-08-07T09:29:40.259759",
+        "total_scores": 400,
+        "expected_scores": 400,
+        "scores_complete": true,
+        "avg_score": 0.28,
+        "score_std": 0.27
+      }
+    ],
+    "performance_tests": [
+      {
+        "test_name": "性能测试",
+        "concurrent_requests": 3,
+        "iterations": 3,
+        "total_requests": 9,
+        "successful_requests": 9,
+        "failed_requests": 0,
+        "success_rate": 100.0,
+        "avg_response_time": 14.97,
+        "min_response_time": 7.46,
+        "max_response_time": 34.46,
+        "p95_response_time": 32.26,
+        "p99_response_time": 34.02,
+        "std_response_time": 9.16,
+        "total_test_time": 69.49,
+        "requests_per_second": 129.52,
+        "timestamp": "2025-08-07T09:29:40.334267"
+      }
+    ],
+    "accuracy_tests": [],
+    "parameter_tuning": []
+  },
+  "match_matrix_summary": {
+    "total_matches": 400,
+    "overall_avg_score": 0.2847,
+    "overall_std_score": 0.272,
+    "high_match_rate": 9.5,
+    "perfect_match_count": 20,
+    "user_statistics": [
+      {
+        "user_id": "U0001",
+        "avg_score": 0.3012,
+        "max_score": 1.0,
+        "high_matches": 1
+      },
+      {
+        "user_id": "U0002",
+        "avg_score": 0.3012,
+        "max_score": 1.0,
+        "high_matches": 1
+      },
+      {
+        "user_id": "U0003",
+        "avg_score": 0.4212,
+        "max_score": 1.0,
+        "high_matches": 1
+      },
+      {
+        "user_id": "U0004",
+        "avg_score": 0.2812,
+        "max_score": 0.67,
+        "high_matches": 1
+      },
+      {
+        "user_id": "U0005",
+        "avg_score": 0.4212,
+        "max_score": 1.0,
+        "high_matches": 1
+      },
+      {
+        "user_id": "U0006",
+        "avg_score": 0.4838,
+        "max_score": 1.0,
+        "high_matches": 2
+      },
+      {
+        "user_id": "U0007",
+        "avg_score": 0.0725,
+        "max_score": 0.33,
+        "high_matches": 0
+      },
+      {
+        "user_id": "U0008",
+        "avg_score": 0.385,
+        "max_score": 0.67,
+        "high_matches": 1
+      },
+      {
+        "user_id": "U0009",
+        "avg_score": 0.4212,
+        "max_score": 1.0,
+        "high_matches": 1
+      },
+      {
+        "user_id": "U0010",
+        "avg_score": 0.2812,
+        "max_score": 0.67,
+        "high_matches": 1
+      },
+      {
+        "user_id": "U0011",
+        "avg_score": 0.3012,
+        "max_score": 1.0,
+        "high_matches": 1
+      },
+      {
+        "user_id": "U0012",
+        "avg_score": 0.26,
+        "max_score": 0.5,
+        "high_matches": 0
+      },
+      {
+        "user_id": "U0013",
+        "avg_score": 0.2388,
+        "max_score": 0.5,
+        "high_matches": 0
+      },
+      {
+        "user_id": "U0014",
+        "avg_score": 0.5688,
+        "max_score": 1.0,
+        "high_matches": 3
+      },
+      {
+        "user_id": "U0015",
+        "avg_score": 0.26,
+        "max_score": 0.5,
+        "high_matches": 0
+      },
+      {
+        "user_id": "U0016",
+        "avg_score": 0.3125,
+        "max_score": 0.67,
+        "high_matches": 1
+      },
+      {
+        "user_id": "U0017",
+        "avg_score": 0.255,
+        "max_score": 0.5,
+        "high_matches": 0
+      },
+      {
+        "user_id": "U0018",
+        "avg_score": 0.255,
+        "max_score": 0.5,
+        "high_matches": 0
+      },
+      {
+        "user_id": "U0019",
+        "avg_score": 0.4638,
+        "max_score": 0.67,
+        "high_matches": 1
+      },
+      {
+        "user_id": "U0020",
+        "avg_score": 0.4838,
+        "max_score": 1.0,
+        "high_matches": 2
+      },
+      {
+        "user_id": "U0021",
+        "avg_score": 0.255,
+        "max_score": 0.5,
+        "high_matches": 0
+      },
+      {
+        "user_id": "U0022",
+        "avg_score": 0.135,
+        "max_score": 0.5,
+        "high_matches": 0
+      },
+      {
+        "user_id": "U0023",
+        "avg_score": 0.3175,
+        "max_score": 0.5,
+        "high_matches": 0
+      },
+      {
+        "user_id": "U0024",
+        "avg_score": 0.4488,
+        "max_score": 1.0,
+        "high_matches": 3
+      },
+      {
+        "user_id": "U0025",
+        "avg_score": 0.0725,
+        "max_score": 0.33,
+        "high_matches": 0
+      },
+      {
+        "user_id": "U0026",
+        "avg_score": 0.385,
+        "max_score": 0.67,
+        "high_matches": 1
+      },
+      {
+        "user_id": "U0027",
+        "avg_score": 0.3125,
+        "max_score": 0.67,
+        "high_matches": 1
+      },
+      {
+        "user_id": "U0028",
+        "avg_score": 0.135,
+        "max_score": 0.5,
+        "high_matches": 0
+      },
+      {
+        "user_id": "U0029",
+        "avg_score": 0.0725,
+        "max_score": 0.33,
+        "high_matches": 0
+      },
+      {
+        "user_id": "U0030",
+        "avg_score": 0.135,
+        "max_score": 0.5,
+        "high_matches": 0
+      },
+      {
+        "user_id": "U0031",
+        "avg_score": 0.2812,
+        "max_score": 0.67,
+        "high_matches": 1
+      },
+      {
+        "user_id": "U0032",
+        "avg_score": 0.4838,
+        "max_score": 1.0,
+        "high_matches": 2
+      },
+      {
+        "user_id": "U0033",
+        "avg_score": 0.0725,
+        "max_score": 0.33,
+        "high_matches": 0
+      },
+      {
+        "user_id": "U0034",
+        "avg_score": 0.5525,
+        "max_score": 1.0,
+        "high_matches": 3
+      },
+      {
+        "user_id": "U0035",
+        "avg_score": 0.255,
+        "max_score": 0.5,
+        "high_matches": 0
+      },
+      {
+        "user_id": "U0036",
+        "avg_score": 0.0725,
+        "max_score": 0.33,
+        "high_matches": 0
+      },
+      {
+        "user_id": "U0037",
+        "avg_score": 0.3012,
+        "max_score": 1.0,
+        "high_matches": 1
+      },
+      {
+        "user_id": "U0038",
+        "avg_score": 0.2812,
+        "max_score": 0.67,
+        "high_matches": 1
+      },
+      {
+        "user_id": "U0039",
+        "avg_score": 0.135,
+        "max_score": 0.5,
+        "high_matches": 0
+      },
+      {
+        "user_id": "U0040",
+        "avg_score": 0.0725,
+        "max_score": 0.33,
+        "high_matches": 0
+      },
+      {
+        "user_id": "U0041",
+        "avg_score": 0.135,
+        "max_score": 0.5,
+        "high_matches": 0
+      },
+      {
+        "user_id": "U0042",
+        "avg_score": 0.625,
+        "max_score": 1.0,
+        "high_matches": 3
+      },
+      {
+        "user_id": "U0043",
+        "avg_score": 0.0725,
+        "max_score": 0.33,
+        "high_matches": 0
+      },
+      {
+        "user_id": "U0044",
+        "avg_score": 0.135,
+        "max_score": 0.5,
+        "high_matches": 0
+      },
+      {
+        "user_id": "U0045",
+        "avg_score": 0.0725,
+        "max_score": 0.33,
+        "high_matches": 0
+      },
+      {
+        "user_id": "U0046",
+        "avg_score": 0.4838,
+        "max_score": 1.0,
+        "high_matches": 2
+      },
+      {
+        "user_id": "U0047",
+        "avg_score": 0.4638,
+        "max_score": 0.67,
+        "high_matches": 1
+      },
+      {
+        "user_id": "U0048",
+        "avg_score": 0.255,
+        "max_score": 0.5,
+        "high_matches": 0
+      },
+      {
+        "user_id": "U0049",
+        "avg_score": 0.3125,
+        "max_score": 0.67,
+        "high_matches": 1
+      },
+      {
+        "user_id": "U0050",
+        "avg_score": 0.135,
+        "max_score": 0.5,
+        "high_matches": 0
+      }
+    ]
+  }
+}

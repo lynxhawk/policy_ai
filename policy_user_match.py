@@ -215,6 +215,7 @@ class PolicyUserMatcher:
             
             # 提取所有条件规则（忽略逻辑关系）
             all_conditions = self.extract_all_conditions(condition_root)
+            print(all_conditions)
             total_conditions = len(all_conditions)
             
             if total_conditions == 0:
@@ -245,7 +246,11 @@ class PolicyUserMatcher:
             
             # 返回匹配率（0-1之间的浮点数）
             score = matched_conditions / total_conditions
-            return round(score, 1)
+            # 判断是否能整除
+            if matched_conditions % total_conditions == 0:
+                return float(matched_conditions // total_conditions)
+            else:
+                return round(matched_conditions / total_conditions, 2)
             
         except Exception as e:
             self.logger.error(f"计算匹配分数异常: 用户={user_data.get('用户ID', 'Unknown')}, 政策={policy_data.get('政策编号', 'Unknown')}, 错误: {e}")

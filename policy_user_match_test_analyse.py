@@ -38,7 +38,7 @@ class PolicyRecommendationTester:
         self.match_matrix = []  # 存储所有匹配度结果
         
     def load_test_data(self, policy_folder: str = "policy_new", user_folder: str = "user_dataset", 
-                       policy_limit: int = 8, user_limit: int = 10):
+                       policy_limit: int = 8, user_limit: int = 50):
         """加载测试数据"""
         logger.info(f"开始加载测试数据 - 政策文件夹:{policy_folder}, 用户文件夹:{user_folder}")
         
@@ -461,7 +461,7 @@ class PolicyRecommendationTester:
                 ws.cell(row=row, column=col, value=match_score)
                 ws.cell(row=row, column=col).alignment = Alignment(horizontal='center', vertical='center')
                 ws.cell(row=row, column=col).border = thin_border
-                ws.cell(row=row, column=col).number_format = '0.0000'
+                ws.cell(row=row, column=col).number_format = '0.00'
                 
                 # 根据匹配度设置颜色
                 if match_score >= 0.8:
@@ -1023,7 +1023,7 @@ def main():
     tester = PolicyRecommendationTester()
     
     # 运行完整测试套件 - 8个政策，10个用户
-    results = tester.run_full_test_suite(policy_limit=8, user_limit=10)
+    results = tester.run_full_test_suite(policy_limit=8, user_limit=50)
     
     if results:
         # 生成测试报告

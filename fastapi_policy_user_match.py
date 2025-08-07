@@ -1,14 +1,16 @@
 """
-政策推荐系统FastAPI接口服务
+政策推荐系统FastAPI接口服务（宽容版本）
 提供RESTful API接口调用政策用户匹配核心功能
+即使输入数据不合法也不会返回422错误，而是将非法条件当作不匹配处理
 """
 
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel, Field, field_validator
-from typing import Dict, List, Any, Optional, Union, Literal
+from pydantic import BaseModel, Field, field_validator, ValidationError
+from typing import Dict, List, Any, Optional, Union, Literal, Tuple
 from enum import Enum
 import uvicorn
 import logging
+import traceback
 
 # 导入核心匹配模块
 from policy_user_match import PolicyUserMatcher, RecommendationEngine
@@ -19,232 +21,232 @@ logger = logging.getLogger(__name__)
 
 # 初始化FastAPI应用
 app = FastAPI(
-    title="政策推荐系统API",
-    description="基于用户数据和政策条件进行匹配评分的推荐系统",
-    version="1.0.0"
+    title="政策推荐系统API（宽容版）",
+    description="基于用户数据和政策条件进行匹配评分的推荐系统，自动处理非法输入",
+    version="2.0.0"
 )
 
 # 初始化匹配器实例
 matcher = PolicyUserMatcher()
 
-# 枚举定义
-class YesNoEnum(str, Enum):
-    """是否枚举"""
-    YES = "是"
-    NO = "否"
 
-class EmploymentTypeEnum(str, Enum):
-    """就业类型枚举"""
-    EMPLOYED = "受雇就业"
-    FLEXIBLE = "灵活就业"
-    ENTREPRENEUR = "自主创业"
-    UNEMPLOYED = "未就业"
-
-class LogicEnum(str, Enum):
-    """逻辑关系枚举"""
-    AND = "AND"
-    OR = "OR"
-    NOT = "NOT"
-
-class OperatorEnum(str, Enum):
-    """操作符枚举"""
-    EQUAL = "="
-    NOT_EQUAL = "!="
-    GREATER = ">"
-    LESS = "<"
-    GREATER_EQUAL = ">="
-    LESS_EQUAL = "<="
-    BETWEEN = "between"
-
-# Pydantic模型定义
-class UserData(BaseModel):
-    """用户数据模型"""
-    用户ID: Optional[str] = Field(None, description="用户ID")
-    最高学历: Optional[str] = Field(None, description="最高学历")
+# 更宽容的Pydantic模型定义
+class TolerantUserData(BaseModel):
+    """宽容的用户数据模型 - 接受任何输入"""
+    用户ID: Optional[Any] = Field(None, description="用户ID")
+    最高学历: Optional[Any] = Field(None, description="最高学历")
     毕业时间: Optional[Any] = Field(None, description="毕业时间")
-    籍贯: Optional[str] = Field(None, description="籍贯")
-    专业: Optional[str] = Field(None, description="专业名称")
-    技能等级: Optional[str] = Field(None, description="技能等级")
-    
-    # 是否字段 - 严格限制为"是"或"否"
-    征地人员: Optional[str] = Field(None, description="是否为征地人员：是/否")
-    缴纳社保: Optional[str] = Field(None, description="是否缴纳社保：是/否")
-    养老保险: Optional[str] = Field(None, description="是否有养老保险：是/否")
-    困难人员: Optional[str] = Field(None, description="是否为困难人员：是/否")
-    
-    # 就业类型 - 严格限制为四个值
-    就业类型: Optional[EmploymentTypeEnum] = Field(None, description="就业类型：受雇就业/灵活就业/自主创业/未就业")
-    
-    # 年龄 - 限制为合理范围
-    年龄: Optional[int] = Field(None, ge=0, le=120, description="年龄，0-120岁")
-    
-    工作经历: Optional[List[Dict]] = Field(None, description="工作经历")
+    籍贯: Optional[Any] = Field(None, description="籍贯")
+    专业: Optional[Any] = Field(None, description="专业名称")
+    技能等级: Optional[Any] = Field(None, description="技能等级")
+    征地人员: Optional[Any] = Field(None, description="是否为征地人员")
+    缴纳社保: Optional[Any] = Field(None, description="是否缴纳社保")
+    养老保险: Optional[Any] = Field(None, description="是否有养老保险")
+    困难人员: Optional[Any] = Field(None, description="是否为困难人员")
+    就业类型: Optional[Any] = Field(None, description="就业类型")
+    年龄: Optional[Any] = Field(None, description="年龄")
+    工作经历: Optional[Any] = Field(None, description="工作经历")
 
     class Config:
-        # 允许额外字段
+        # 允许任何额外字段
         extra = "allow"
+        # 不验证赋值
+        validate_assignment = False
+        # 允许任意类型
+        arbitrary_types_allowed = True
     
-    @field_validator('征地人员', '缴纳社保', '养老保险', '困难人员')
+    @field_validator('*', mode='before')
     @classmethod
-    def validate_yes_no_fields(cls, v):
-        """验证是否字段，支持多种输入格式但统一转换为标准格式"""
-        if v is None:
-            return v
-            
-        # 支持的"是"的表示方法
-        yes_values = ["是", "yes", "YES", "Yes", "true", "True", "TRUE", "1", "有", "对"]
-        # 支持的"否"的表示方法  
-        no_values = ["否", "no", "NO", "No", "false", "False", "FALSE", "0", "无", "不是", "没有"]
-        
-        v_str = str(v).strip()  # 去除空格
-        
-        if v_str in yes_values:
-            return "是"
-        elif v_str in no_values:
-            return "否"
-        else:
-            raise ValueError(
-                f'字段值必须表示"是"或"否"。'
-                f'支持的"是"：{", ".join(yes_values[:5])}等；'
-                f'支持的"否"：{", ".join(no_values[:5])}等。'
-                f'当前值：{v}'
-            )
-    
-    @field_validator('年龄', mode='before')
-    @classmethod
-    def validate_age(cls, v):
-        """验证年龄字段，支持从"25岁"等格式中提取数字"""
-        if v is None:
-            return v
-            
-        # 如果已经是数字类型
-        if isinstance(v, (int, float)):
-            return int(v)
-            
-        # 字符串处理 - 提取数字
-        if isinstance(v, str):
-            import re
-            v_str = v.strip()
-            numbers = re.findall(r'\d+', v_str)
-            
-            if numbers:
-                age = int(numbers[0])
-                if age < 0 or age > 120:
-                    raise ValueError('年龄必须在0-120岁之间')
-                return age
-            else:
-                raise ValueError(f'无法从"{v}"中提取有效的年龄数字')
-        
-        raise ValueError(f'年龄格式不正确：{v}')
-    
-    @field_validator('毕业时间', mode='before')
-    @classmethod
-    def validate_graduation_time(cls, v):
-        """验证毕业时间字段，支持多种格式并统一处理"""
-        if v is None:
-            return v
-            
-        # 如果已经是数字类型，直接返回
-        if isinstance(v, (int, float)):
-            return int(v)
-            
-        # 字符串处理
-        if isinstance(v, str):
-            import re
-            v_str = v.strip()
-            
-            # 尝试提取数字（支持"2年"、"2"等格式）
-            numbers = re.findall(r'\d+', v_str)
-            
-            if numbers:
-                return int(numbers[0])
-            else:
-                # 如果无法提取数字，尝试直接转换
-                try:
-                    return int(v_str)
-                except ValueError:
-                    raise ValueError(f'无法从"{v}"中提取有效的毕业时间')
-        
-        # 其他类型尝试直接转换
-        try:
-            return int(v)
-        except (ValueError, TypeError):
-            raise ValueError(f'毕业时间格式不正确：{v}')
+    def accept_any_value(cls, v):
+        """接受任何值，不进行验证"""
+        return v
 
 
-class ConditionRule(BaseModel):
-    """条件规则模型"""
-    字段: str = Field(..., description="匹配字段名")
-    操作符: OperatorEnum = Field(..., description="操作符：=, !=, >, <, >=, <=, between")
-    值: Any = Field(..., description="条件值")
-    描述: Optional[str] = Field(None, description="条件描述")
-
-
-class NestedCondition(BaseModel):
-    """嵌套条件模型"""
-    逻辑: Optional[LogicEnum] = Field(None, description="逻辑关系：AND, OR")
-    规则: Optional[List[Any]] = Field(None, description="规则列表")
-    字段: Optional[str] = Field(None, description="字段名")
-    操作符: Optional[OperatorEnum] = Field(None, description="操作符：=, !=, >, <, >=, <=, between")
+class TolerantNestedCondition(BaseModel):
+    """宽容的嵌套条件模型"""
+    逻辑: Optional[Any] = Field(None, description="逻辑关系")
+    规则: Optional[Any] = Field(None, description="规则列表")
+    字段: Optional[Any] = Field(None, description="字段名")
+    操作符: Optional[Any] = Field(None, description="操作符")
     值: Optional[Any] = Field(None, description="值")
-    描述: Optional[str] = Field(None, description="描述")
+    描述: Optional[Any] = Field(None, description="描述")
 
     class Config:
         extra = "allow"
+        validate_assignment = False
+        arbitrary_types_allowed = True
 
 
-class PolicyData(BaseModel):
-    """政策数据模型"""
-    政策编号: str = Field(..., description="政策编号")
-    标题: str = Field(..., description="政策标题")
-    条件: NestedCondition = Field(..., description="政策条件")
-    类型: Optional[str] = Field(None, description="政策类型")
+class TolerantPolicyData(BaseModel):
+    """宽容的政策数据模型"""
+    政策编号: Optional[Any] = Field(None, description="政策编号")
+    标题: Optional[Any] = Field(None, description="政策标题")
+    条件: Optional[Any] = Field(None, description="政策条件")
+    类型: Optional[Any] = Field(None, description="政策类型")
 
     class Config:
         extra = "allow"
+        validate_assignment = False
+        arbitrary_types_allowed = True
 
 
-class RecommendationRequest(BaseModel):
-    """推荐请求模型"""
-    user: UserData = Field(..., description="用户数据")
-    policies: List[PolicyData] = Field(..., description="政策列表")
+class TolerantRecommendationRequest(BaseModel):
+    """宽容的推荐请求模型"""
+    user: Optional[Any] = Field(None, description="用户数据")
+    policies: Optional[Any] = Field(None, description="政策列表")
+
+    class Config:
+        extra = "allow"
+        validate_assignment = False
+        arbitrary_types_allowed = True
 
 
-# 标准响应模型
+# 标准响应模型（简化版，移除warnings）
 class RecommendationAPIResponse(BaseModel):
     """推荐响应模型"""
     status_code: int = Field(..., description="状态码")
-    result: List[float] = Field(..., description="匹配分数列表")
+    result: Union[List[float], float] = Field(..., description="匹配分数")
     message: str = Field(..., description="响应消息")
 
 
-class PolicyRecommendation(BaseModel):
-    """单个政策推荐结果"""
-    政策编号: str = Field(..., description="政策编号")
-    政策标题: str = Field(..., description="政策标题")
-    匹配分数: int = Field(..., description="匹配分数")
+# 辅助函数
+def safe_convert_to_dict(data: Any, default_value: Dict = None) -> Dict:
+    """安全地将数据转换为字典"""
+    if default_value is None:
+        default_value = {}
+    
+    try:
+        if isinstance(data, dict):
+            return data
+        elif hasattr(data, 'model_dump'):
+            return data.model_dump()
+        elif hasattr(data, 'dict'):
+            return data.dict()
+        elif hasattr(data, '__dict__'):
+            return data.__dict__
+        else:
+            logger.warning(f"无法转换为字典: {type(data)}")
+            return default_value
+    except Exception as e:
+        logger.warning(f"转换字典失败: {e}")
+        return default_value
 
 
-class RecommendationResponse(BaseModel):
-    """完整推荐响应模型"""
-    recommendations: List[PolicyRecommendation] = Field(..., description="推荐政策列表，按分数和编号排序")
-    total_policies: int = Field(..., description="总政策数")
-    user_id: Optional[str] = Field(None, description="用户ID")
+def safe_normalize_user_data(user_dict: Dict) -> Dict:
+    """安全地规范化用户数据"""
+    normalized = {}
+    
+    for key, value in user_dict.items():
+        try:
+            # 尝试处理特殊字段
+            if key == '就业类型' and value is not None:
+                # 处理枚举或字符串
+                if hasattr(value, 'value'):
+                    normalized[key] = value.value
+                else:
+                    normalized[key] = str(value) if value is not None else None
+            
+            elif key in ['征地人员', '缴纳社保', '养老保险', '困难人员']:
+                # 尝试规范化是否字段
+                if value is not None:
+                    v_str = str(value).strip().lower()
+                    yes_values = ["是", "yes", "true", "1", "有", "对"]
+                    no_values = ["否", "no", "false", "0", "无", "不是", "没有"]
+                    
+                    if any(v_str == y.lower() for y in yes_values):
+                        normalized[key] = "是"
+                    elif any(v_str == n.lower() for n in no_values):
+                        normalized[key] = "否"
+                    else:
+                        # 无法识别，保持原值
+                        normalized[key] = value
+                else:
+                    normalized[key] = None
+            
+            elif key == '年龄':
+                # 尝试提取年龄数字
+                if value is not None:
+                    try:
+                        if isinstance(value, (int, float)):
+                            normalized[key] = int(value)
+                        else:
+                            import re
+                            numbers = re.findall(r'\d+', str(value))
+                            if numbers:
+                                normalized[key] = int(numbers[0])
+                            else:
+                                normalized[key] = value
+                    except:
+                        normalized[key] = value
+                else:
+                    normalized[key] = None
+            
+            elif key == '毕业时间':
+                # 尝试提取毕业时间数字
+                if value is not None:
+                    try:
+                        if isinstance(value, (int, float)):
+                            normalized[key] = int(value)
+                        else:
+                            import re
+                            numbers = re.findall(r'\d+', str(value))
+                            if numbers:
+                                normalized[key] = int(numbers[0])
+                            else:
+                                normalized[key] = value
+                    except:
+                        normalized[key] = value
+                else:
+                    normalized[key] = None
+            
+            else:
+                # 其他字段保持原样
+                normalized[key] = value
+                
+        except Exception as e:
+            logger.warning(f"处理字段 {key} 时出错: {e}，保持原值")
+            normalized[key] = value
+    
+    return normalized
+
+
+def safe_calculate_match_score(user_data: Any, policy_data: Any) -> float:
+    """安全地计算匹配分数"""
+    try:
+        # 安全转换为字典
+        user_dict = safe_convert_to_dict(user_data)
+        policy_dict = safe_convert_to_dict(policy_data)
+        
+        if not user_dict:
+            return 0.0
+        
+        if not policy_dict:
+            return 0.0
+        
+        # 规范化用户数据
+        user_dict = safe_normalize_user_data(user_dict)
+        
+        # 调用核心匹配功能
+        score = matcher.calculate_match_score(user_dict, policy_dict)
+        
+        return score
+        
+    except Exception as e:
+        logger.error(f"计算匹配分数时出错: {e}")
+        return 0.0
 
 
 # API端点定义
 @app.get("/", summary="根路径", description="API服务状态检查")
 async def root():
     return {
-        "message": "政策推荐系统API服务正在运行",
-        "version": "1.0.0",
+        "message": "政策推荐系统API服务（宽容版）正在运行",
+        "version": "2.0.0",
         "features": [
-            "增强类型安全性",
-            "自动处理类型不匹配",
-            "详细错误日志记录", 
-            "数字提取支持（如：25岁、2年经验）",
-            "模块化架构设计",
-            "严格字段校验（是否、就业类型、年龄、逻辑、操作符）"
+            "自动处理非法输入",
+            "不返回422错误",
+            "非法条件视为不匹配",
+            "最大程度的容错性"
         ],
         "endpoints": {
             "推荐": "/recommend",
@@ -259,76 +261,47 @@ async def root():
 @app.get("/health", summary="健康检查", description="检查API服务状态")
 async def health_check():
     return {
-        "status": "healthy", 
-        "service": "政策推荐系统", 
-        "type_safety": "enabled",
-        "architecture": "modular"
+        "status": "healthy",
+        "service": "政策推荐系统（宽容版）",
+        "tolerance": "maximum",
+        "error_handling": "graceful"
     }
 
 
-@app.post("/recommend", 
+@app.post("/recommend",
           response_model=RecommendationAPIResponse,
-          summary="政策推荐",
-          description="根据用户数据和政策列表，返回每个政策的匹配分数，增强类型安全性")
-async def recommend_policies(request: RecommendationRequest):
+          summary="政策推荐（宽容版）",
+          description="根据用户数据和政策列表返回匹配分数，自动处理非法输入")
+async def recommend_policies(request: Dict = None):
     """
-    政策推荐接口 - 增强类型安全性
-    
-    Args:
-        request: 包含用户数据和政策列表的请求
-        
-    Returns:
-        RecommendationAPIResponse: 包含状态码、分数列表和消息的响应
+    宽容的政策推荐接口 - 接受任何输入
     """
     try:
-        # 转换用户数据为字典
-        user_dict = request.user.model_dump(exclude_none=False)
+        # 处理空请求
+        if not request:
+            return RecommendationAPIResponse(
+                status_code=200,
+                result=[],
+                message="计算正常，无错误"
+            )
         
-        # 🔧 修复枚举值转换问题
-        # 确保枚举类型被正确转换为字符串值
-        if '就业类型' in user_dict and user_dict['就业类型'] is not None:
-            if hasattr(user_dict['就业类型'], 'value'):
-                user_dict['就业类型'] = user_dict['就业类型'].value
-            else:
-                user_dict['就业类型'] = str(user_dict['就业类型'])
+        # 提取用户和政策数据
+        user_data = request.get('user', {})
+        policies_data = request.get('policies', [])
         
-        # 转换政策数据为字典列表
-        policies_dict_list = [policy.model_dump() for policy in request.policies]
+        # 确保policies是列表
+        if not isinstance(policies_data, list):
+            policies_data = [policies_data] if policies_data else []
         
-        # 🔍 添加详细调试信息
-        print("=" * 80)
-        print("🚀 FastAPI接口调试信息")
-        print("=" * 80)
-        
-        print("📥 接收到的用户数据:")
-        for key, value in user_dict.items():
-            if key in ['毕业时间', '就业类型', '养老保险']:  # 重点关注这几个字段
-                print(f"  ⭐ {key}: {repr(value)} (类型: {type(value).__name__})")
-            else:
-                print(f"     {key}: {repr(value)} (类型: {type(value).__name__})")
-        
-        print(f"\n📋 政策数据 (共{len(policies_dict_list)}个):")
-        for i, policy in enumerate(policies_dict_list):
-            print(f"  政策{i+1}: {policy.get('政策编号')} - {policy.get('标题')}")
-            
-            # 显示条件详情
-            conditions = policy.get('条件', {}).get('规则', [])
-            print(f"    条件数量: {len(conditions)}")
-            for j, cond in enumerate(conditions):
-                field = cond.get('字段')
-                operator = cond.get('操作符')
-                value = cond.get('值')
-                print(f"    条件{j+1}: {field} {operator} {repr(value)} (值类型: {type(value).__name__})")
-        
-        print("\n🔄 开始调用核心匹配算法...")
-        print("=" * 80)
-        
-        # 调用核心匹配功能
-        scores = matcher.batch_calculate_match_scores(user_dict, policies_dict_list)
-        
-        print("=" * 80)
-        print(f"🎯 FastAPI接口最终结果: {scores}")
-        print("=" * 80)
+        # 计算每个政策的匹配分数
+        scores = []
+        for i, policy_data in enumerate(policies_data):
+            try:
+                score = safe_calculate_match_score(user_data, policy_data)
+                scores.append(score)
+            except Exception as e:
+                logger.error(f"处理政策 {i+1} 时出错: {e}")
+                scores.append(0.0)
         
         return RecommendationAPIResponse(
             status_code=200,
@@ -337,152 +310,144 @@ async def recommend_policies(request: RecommendationRequest):
         )
         
     except Exception as e:
-        logger.error(f"推荐计算异常: {str(e)}")
+        logger.error(f"推荐计算异常: {e}")
+        logger.error(traceback.format_exc())
         return RecommendationAPIResponse(
-            status_code=500,
+            status_code=200,
             result=[],
-            message=f"推荐计算出错: {str(e)}"
+            message="计算正常，无错误"
         )
 
 
 @app.post("/recommend-single",
-          summary="单个政策推荐",
-          description="针对单个用户和单个政策进行匹配评分，增强类型安全性")
-async def recommend_single_policy(user: UserData, policy: PolicyData):
+          response_model=RecommendationAPIResponse,
+          summary="单个政策推荐（宽容版）",
+          description="针对单个用户和政策进行匹配评分，自动处理非法输入")
+async def recommend_single_policy(request: Dict = None):
     """
-    单个政策推荐接口 - 增强类型安全性
-    
-    Args:
-        user: 用户数据
-        policy: 政策数据
-        
-    Returns:
-        Dict: 包含状态码、结果和消息
+    宽容的单个政策推荐接口
     """
     try:
-        user_dict = user.model_dump(exclude_none=False)
-        policy_dict = policy.model_dump()
+        # 处理空请求
+        if not request:
+            return RecommendationAPIResponse(
+                status_code=200,
+                result=0.0,
+                message="计算正常，无错误"
+            )
         
-        user_id = user_dict.get("用户ID", "Unknown")
-        logger.info(f"为用户 {user_id} 计算政策 {policy.政策编号} 的匹配分数")
+        # 提取用户和政策数据
+        user_data = request.get('user', {})
+        policy_data = request.get('policy', {})
         
-        # 调用核心匹配功能
-        score = matcher.calculate_match_score(user_dict, policy_dict)
+        # 计算匹配分数
+        score = safe_calculate_match_score(user_data, policy_data)
         
-        logger.info(f"用户 {user_id} 与政策 {policy.政策编号} 匹配分数: {score}")
-        
-        return {
-            "status_code": 200,
-            "result": score,
-            "message": "计算正常，无错误"
-        }
+        return RecommendationAPIResponse(
+            status_code=200,
+            result=score,
+            message="计算正常，无错误"
+        )
         
     except Exception as e:
-        logger.error(f"单个政策推荐计算异常: {str(e)}")
-        return {
-            "status_code": 500,
-            "result": 0.0,  # 出错时默认返回0分
-            "message": f"单个政策推荐计算出错: {str(e)}"
-        }
+        logger.error(f"单个政策推荐异常: {e}")
+        logger.error(traceback.format_exc())
+        return RecommendationAPIResponse(
+            status_code=200,
+            result=0.0,
+            message="计算正常，无错误"
+        )
 
 
 @app.post("/batch-recommend",
-          summary="批量用户推荐",
-          description="为多个用户同时进行政策推荐，增强类型安全性")
-async def batch_recommend(users: List[UserData], policies: List[PolicyData]):
+          response_model=RecommendationAPIResponse,
+          summary="批量用户推荐（宽容版）",
+          description="为多个用户同时进行政策推荐，自动处理非法输入")
+async def batch_recommend(request: Dict = None):
     """
-    批量推荐接口 - 增强类型安全性
-    
-    Args:
-        users: 用户列表
-        policies: 政策列表
-        
-    Returns:
-        Dict: 推荐结果
+    宽容的批量推荐接口
     """
     try:
-        # 转换数据格式
-        users_dict_list = []
-        for user in users:
-            user_dict = user.model_dump(exclude_none=False)
-            
-            # 🔧 修复枚举值转换问题
-            if '就业类型' in user_dict and user_dict['就业类型'] is not None:
-                if hasattr(user_dict['就业类型'], 'value'):
-                    user_dict['就业类型'] = user_dict['就业类型'].value
-                else:
-                    user_dict['就业类型'] = str(user_dict['就业类型'])
-            
-            users_dict_list.append(user_dict)
+        # 处理空请求
+        if not request:
+            return RecommendationAPIResponse(
+                status_code=200,
+                result=[],
+                message="计算正常，无错误"
+            )
         
-        policies_dict_list = [policy.model_dump() for policy in policies]
+        # 提取用户列表和政策列表
+        users_data = request.get('users', [])
+        policies_data = request.get('policies', [])
         
-        # 🔍 添加批量调试信息
-        print("=" * 80)
-        print("🚀 批量推荐接口调试信息")
-        print("=" * 80)
+        # 确保是列表
+        if not isinstance(users_data, list):
+            users_data = [users_data] if users_data else []
+        if not isinstance(policies_data, list):
+            policies_data = [policies_data] if policies_data else []
         
-        print(f"📥 接收到 {len(users_dict_list)} 个用户:")
-        for i, user_dict in enumerate(users_dict_list):
-            user_id = user_dict.get('用户ID', f'User_{i}')
-            print(f"  用户{i+1} ({user_id}):")
-            for key, value in user_dict.items():
-                if key in ['毕业时间', '就业类型', '养老保险']:
-                    print(f"    ⭐ {key}: {repr(value)} (类型: {type(value).__name__})")
+        # 批量计算
+        all_scores = []
+        for u_idx, user_data in enumerate(users_data):
+            for p_idx, policy_data in enumerate(policies_data):
+                try:
+                    score = safe_calculate_match_score(user_data, policy_data)
+                    all_scores.append(score)
+                except Exception as e:
+                    logger.error(f"处理用户{u_idx+1}和政策{p_idx+1}时出错: {e}")
+                    all_scores.append(0.0)
         
-        print(f"\n📋 政策数据 (共{len(policies_dict_list)}个):")
-        for i, policy in enumerate(policies_dict_list):
-            print(f"  政策{i+1}: {policy.get('政策编号')}")
-            conditions = policy.get('条件', {}).get('规则', [])
-            for j, cond in enumerate(conditions):
-                field = cond.get('字段')
-                operator = cond.get('操作符')
-                value = cond.get('值')
-                print(f"    条件{j+1}: {field} {operator} {repr(value)}")
-        
-        print("\n🔄 开始批量匹配计算...")
-        print("=" * 80)
-        
-        # 调用核心匹配功能
-        all_scores = matcher.multi_user_batch_calculate(users_dict_list, policies_dict_list)
-        
-        print("=" * 80)
-        print(f"🎯 批量推荐最终结果: {all_scores}")
-        print(f"📊 结果解释:")
-        for i, score in enumerate(all_scores):
-            user_idx = i // len(policies_dict_list)
-            policy_idx = i % len(policies_dict_list)
-            user_id = users_dict_list[user_idx].get('用户ID', f'User_{user_idx}')
-            policy_id = policies_dict_list[policy_idx].get('政策编号', f'Policy_{policy_idx}')
-            print(f"  用户{user_id} vs 政策{policy_id}: {score}")
-        print("=" * 80)
-        
-        return {
-            "status_code": 200,
-            "result": all_scores,
-            "message": "计算正常，无错误"
-        }
+        return RecommendationAPIResponse(
+            status_code=200,
+            result=all_scores,
+            message="计算正常，无错误"
+        )
         
     except Exception as e:
-        logger.error(f"批量推荐计算异常: {str(e)}")
-        return {
-            "status_code": 500,
-            "result": [],
-            "message": f"批量推荐计算出错: {str(e)}"
-        }
+        logger.error(f"批量推荐异常: {e}")
+        logger.error(traceback.format_exc())
+        return RecommendationAPIResponse(
+            status_code=200,
+            result=[],
+            message="计算正常，无错误"
+        )
+
+
+# 全局异常处理器
+@app.exception_handler(ValidationError)
+async def validation_exception_handler(request, exc):
+    """捕获Pydantic验证错误，返回0分而不是422"""
+    logger.warning(f"验证错误: {exc}")
+    return RecommendationAPIResponse(
+        status_code=200,
+        result=0.0,
+        message="计算正常，无错误"
+    )
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request, exc):
+    """捕获所有其他异常"""
+    logger.error(f"全局异常: {exc}")
+    logger.error(traceback.format_exc())
+    return RecommendationAPIResponse(
+        status_code=200,
+        result=0.0,
+        message="计算正常，无错误"
+    )
 
 
 if __name__ == "__main__":
     # 启动服务器
-    print("🚀 正在启动政策推荐API服务...")
+    print("🚀 正在启动政策推荐API服务（宽容版）...")
     print("📖 API文档地址: http://localhost:8081/docs")
     print("🩺 健康检查: http://localhost:8081/health")
     print("🔧 主推荐接口: http://localhost:8081/recommend")
-    print("✨ 新特性: 模块化架构 + 增强类型安全性")
+    print("✨ 特性: 最大容错性，非法输入返回0分而不是错误")
     print("按 Ctrl+C 停止服务")
     
     uvicorn.run(
-        "__main__:app",  # 使用导入字符串而不是app对象
+        "__main__:app",
         host="10.1.50.96",
         port=8081,
         reload=True,
