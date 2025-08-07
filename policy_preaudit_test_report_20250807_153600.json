@@ -1,0 +1,38 @@
+{
+  "test_summary": {
+    "test_time": "2025-08-07T15:36:00.796872",
+    "total_api_tests": 1,
+    "successful_api_tests": 1,
+    "audit_matrix_generated": true
+  },
+  "audit_summary": {
+    "total_audits": 400,
+    "total_passed": 44,
+    "total_failed": 356,
+    "overall_pass_rate": 11.0
+  },
+  "detailed_results": {
+    "api_tests": [
+      {
+        "test_name": "健康检查",
+        "endpoint": "/health",
+        "method": "GET",
+        "status_code": 200,
+        "response_time": 8.95,
+        "success": true,
+        "response_data": {
+          "status": "healthy",
+          "service": "政策预审系统（宽容版）",
+          "audit_mode": "strict",
+          "result_type": "binary (0 or 1)",
+          "tolerance": "maximum",
+          "error_handling": "graceful"
+        },
+        "timestamp": "2025-08-07T15:35:13.680831"
+      }
+    ],
+    "performance_tests": [],
+    "accuracy_tests": [],
+    "parameter_tuning": []
+  }
+}
