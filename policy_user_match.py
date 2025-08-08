@@ -222,6 +222,7 @@ class PolicyUserMatcher:
                 self.logger.warning(f"政策 {policy_data.get('政策编号', 'Unknown')} 没有条件规则")
                 return 0.0
             
+            
             for condition in all_conditions:
                 try:
                     field = condition.get("字段")
