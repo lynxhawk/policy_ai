@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 class PolicyPreAuditTester:
     """政策预审系统测试类"""
     
-    def __init__(self, base_url: str = "http://10.1.50.96:8082"):
+    def __init__(self, base_url: str = "http://127.0.0.1:8082"):
         self.base_url = base_url
         self.test_results = {
             'api_tests': [],
