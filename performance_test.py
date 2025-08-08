@@ -1,16 +1,15 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-政策推荐系统并发性能测试脚本
-专门用于测试系统的并发处理能力和性能指标
+政策推荐系统 recommend-single 接口专项性能测试
+专门测试单个政策推荐接口的并发性能
 """
 
-import subprocess
+import requests
 import time
 import threading
 import json
 import psutil
-import requests
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -18,28 +17,28 @@ from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import List, Dict, Any
 import os
-import pandas as pd
 import logging
+import random
 
 # 配置日志
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(threadName)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler(f'performance_test_{datetime.now().strftime("%Y%m%d_%H%M%S")}.log'),
+        logging.FileHandler(f'single_api_test_{datetime.now().strftime("%Y%m%d_%H%M%S")}.log'),
         logging.StreamHandler()
     ]
 )
 logger = logging.getLogger(__name__)
 
-class ConcurrentPerformanceTester:
-    """并发性能测试器"""
+class RecommendSingleTester:
+    """recommend-single接口专项性能测试器"""
     
     def __init__(self, base_url: str = "http://127.0.0.1:8081"):
         self.base_url = base_url
-        self.performance_data = []
+        self.endpoint = "recommend-single"
+        self.test_results = []
         self.system_metrics = []
-        self.test_results = {}
         
     def check_service_health(self) -> bool:
         """检查服务是否正常运行"""
@@ -56,7 +55,7 @@ class ConcurrentPerformanceTester:
             return False
     
     def load_test_data(self, policy_folder: str = "policy_new", user_folder: str = "user_dataset", 
-                       policy_limit: int = 5, user_limit: int = 10):
+                       policy_limit: int = 8, user_limit: int = 50):
         """加载测试数据"""
         logger.info(f"📁 加载测试数据 - 政策限制:{policy_limit}, 用户限制:{user_limit}")
         
@@ -69,6 +68,7 @@ class ConcurrentPerformanceTester:
                     with open(os.path.join(policy_folder, file), 'r', encoding='utf-8') as f:
                         policy_data = json.load(f)
                         policies.append(policy_data)
+                        logger.info(f"✅ 加载政策: {policy_data.get('政策编号', file)}")
                 except Exception as e:
                     logger.warning(f"加载政策文件 {file} 失败: {e}")
         
@@ -81,6 +81,7 @@ class ConcurrentPerformanceTester:
                     with open(os.path.join(user_folder, file), 'r', encoding='utf-8') as f:
                         user_data = json.load(f)
                         users.append(user_data)
+                        logger.info(f"✅ 加载用户: {user_data.get('用户ID', file)}")
                 except Exception as e:
                     logger.warning(f"加载用户文件 {file} 失败: {e}")
         
@@ -96,27 +97,15 @@ class ConcurrentPerformanceTester:
         
         while time.time() < end_time:
             try:
-                # CPU使用率
+                # CPU和内存使用率
                 cpu_percent = psutil.cpu_percent(interval=0.1)
-                
-                # 内存使用情况
                 memory = psutil.virtual_memory()
-                
-                # 磁盘I/O
-                disk_io = psutil.disk_io_counters()
-                
-                # 网络I/O
-                net_io = psutil.net_io_counters()
                 
                 metric = {
                     'timestamp': time.time(),
                     'cpu_percent': cpu_percent,
                     'memory_percent': memory.percent,
-                    'memory_available': memory.available / (1024**3),  # GB
-                    'disk_read_mb': disk_io.read_bytes / (1024**2) if disk_io else 0,
-                    'disk_write_mb': disk_io.write_bytes / (1024**2) if disk_io else 0,
-                    'net_bytes_sent': net_io.bytes_sent / (1024**2) if net_io else 0,
-                    'net_bytes_recv': net_io.bytes_recv / (1024**2) if net_io else 0
+                    'memory_available_gb': memory.available / (1024**3)
                 }
                 
                 self.system_metrics.append(metric)
@@ -128,14 +117,19 @@ class ConcurrentPerformanceTester:
         
         logger.info("📊 系统资源监控完成")
     
-    def single_api_request(self, endpoint: str, payload: Dict, timeout: int = 30) -> Dict:
-        """执行单个API请求"""
+    def single_recommend_request(self, user: Dict, policy: Dict, timeout: int = 30) -> Dict:
+        """执行单次recommend-single请求"""
         start_time = time.time()
         thread_id = threading.current_thread().ident
         
         try:
+            payload = {
+                "user": user,
+                "policy": policy
+            }
+            
             response = requests.post(
-                f"{self.base_url}/{endpoint}",
+                f"{self.base_url}/{self.endpoint}",
                 json=payload,
                 headers={"Content-Type": "application/json"},
                 timeout=timeout
@@ -144,11 +138,13 @@ class ConcurrentPerformanceTester:
             
             result = {
                 'thread_id': thread_id,
+                'user_id': user.get('用户ID', 'unknown'),
+                'policy_id': policy.get('政策编号', 'unknown'),
                 'success': response.status_code == 200,
                 'status_code': response.status_code,
                 'response_time': (end_time - start_time) * 1000,  # ms
-                'request_size': len(json.dumps(payload).encode('utf-8')) / 1024,  # KB
-                'response_size': len(response.content) / 1024 if hasattr(response, 'content') else 0,  # KB
+                'request_size': len(json.dumps(payload).encode('utf-8')),  # bytes
+                'response_size': len(response.content) if hasattr(response, 'content') else 0,
                 'start_time': start_time,
                 'end_time': end_time,
                 'timestamp': datetime.now().isoformat()
@@ -157,17 +153,11 @@ class ConcurrentPerformanceTester:
             if response.status_code == 200:
                 try:
                     response_data = response.json()
+                    match_score = response_data.get('result', 0)
+                    result['match_score'] = match_score
                     result['response_data'] = response_data
-                    
-                    # 提取匹配度分数（如果有）
-                    if 'result' in response_data:
-                        if isinstance(response_data['result'], list):
-                            result['match_scores'] = response_data['result']
-                            result['avg_match_score'] = np.mean(response_data['result'])
-                        else:
-                            result['match_score'] = response_data['result']
                 except:
-                    pass
+                    result['match_score'] = 0
             
             return result
             
@@ -175,6 +165,8 @@ class ConcurrentPerformanceTester:
             end_time = time.time()
             return {
                 'thread_id': thread_id,
+                'user_id': user.get('用户ID', 'unknown'),
+                'policy_id': policy.get('政策编号', 'unknown'),
                 'success': False,
                 'status_code': 408,
                 'response_time': (end_time - start_time) * 1000,
@@ -187,6 +179,8 @@ class ConcurrentPerformanceTester:
             end_time = time.time()
             return {
                 'thread_id': thread_id,
+                'user_id': user.get('用户ID', 'unknown'),
+                'policy_id': policy.get('政策编号', 'unknown'),
                 'success': False,
                 'status_code': 0,
                 'response_time': (end_time - start_time) * 1000,
@@ -196,14 +190,13 @@ class ConcurrentPerformanceTester:
                 'timestamp': datetime.now().isoformat()
             }
     
-    def concurrent_load_test(self, users: List[Dict], policies: List[Dict], 
-                           concurrent_users: int = 10, test_duration: int = 60,
-                           endpoint: str = "recommend"):
-        """并发负载测试"""
-        logger.info(f"🚀 开始并发负载测试")
-        logger.info(f"  并发用户数: {concurrent_users}")
+    def concurrent_test(self, users: List[Dict], policies: List[Dict], 
+                       concurrent_requests: int = 10, test_duration: int = 60):
+        """并发测试recommend-single接口"""
+        logger.info(f"🚀 开始recommend-single并发测试")
+        logger.info(f"  并发请求数: {concurrent_requests}")
         logger.info(f"  测试持续时间: {test_duration}s")
-        logger.info(f"  测试端点: /{endpoint}")
+        logger.info(f"  用户数: {len(users)}, 政策数: {len(policies)}")
         
         test_results = []
         test_start_time = time.time()
@@ -212,37 +205,37 @@ class ConcurrentPerformanceTester:
         # 启动系统监控线程
         monitor_thread = threading.Thread(
             target=self.monitor_system_resources,
-            args=(test_duration + 5,),  # 多监控5秒
+            args=(test_duration + 5,),
             daemon=True
         )
         monitor_thread.start()
         
-        def generate_request():
-            """生成一个随机请求"""
-            user = users[np.random.randint(0, len(users))]
-            if endpoint == "recommend-single":
-                policy = policies[np.random.randint(0, len(policies))]
-                payload = {"user": user, "policy": policy}
-            else:  # recommend or batch-recommend
-                payload = {"user": user, "policies": policies}
-            return payload
+        def generate_random_pair():
+            """随机生成用户-政策对"""
+            user = random.choice(users)
+            policy = random.choice(policies)
+            return user, policy
         
         def worker():
             """工作线程函数"""
             thread_results = []
+            request_count = 0
+            
             while time.time() < test_end_time:
-                payload = generate_request()
-                result = self.single_api_request(endpoint, payload)
+                user, policy = generate_random_pair()
+                result = self.single_recommend_request(user, policy)
                 thread_results.append(result)
+                request_count += 1
                 
                 # 短暂休息避免过度请求
-                time.sleep(0.1)
+                time.sleep(0.01)  # 10ms间隔
             
+            logger.info(f"线程 {threading.current_thread().ident} 完成 {request_count} 个请求")
             return thread_results
         
         # 启动并发测试
-        with ThreadPoolExecutor(max_workers=concurrent_users) as executor:
-            futures = [executor.submit(worker) for _ in range(concurrent_users)]
+        with ThreadPoolExecutor(max_workers=concurrent_requests) as executor:
+            futures = [executor.submit(worker) for _ in range(concurrent_requests)]
             
             for future in as_completed(futures):
                 try:
@@ -254,62 +247,90 @@ class ConcurrentPerformanceTester:
         total_test_time = time.time() - test_start_time
         
         # 分析结果
+        return self._analyze_test_results(test_results, total_test_time, {
+            'concurrent_requests': concurrent_requests,
+            'test_duration': test_duration,
+            'users_count': len(users),
+            'policies_count': len(policies)
+        })
+    
+    def _analyze_test_results(self, test_results: List[Dict], total_test_time: float, test_config: Dict):
+        """分析测试结果"""
         successful_requests = [r for r in test_results if r['success']]
         failed_requests = [r for r in test_results if not r['success']]
         
-        if successful_requests:
-            response_times = [r['response_time'] for r in successful_requests]
-            
-            performance_stats = {
-                'test_name': f'并发负载测试 - {endpoint}',
-                'test_config': {
-                    'concurrent_users': concurrent_users,
-                    'test_duration': test_duration,
-                    'endpoint': endpoint,
-                    'users_count': len(users),
-                    'policies_count': len(policies)
-                },
-                'request_stats': {
-                    'total_requests': len(test_results),
-                    'successful_requests': len(successful_requests),
-                    'failed_requests': len(failed_requests),
-                    'success_rate': len(successful_requests) / len(test_results) * 100,
-                    'requests_per_second': len(test_results) / total_test_time
-                },
-                'response_time_stats': {
-                    'avg_response_time': np.mean(response_times),
-                    'min_response_time': min(response_times),
-                    'max_response_time': max(response_times),
-                    'median_response_time': np.median(response_times),
-                    'p90_response_time': np.percentile(response_times, 90),
-                    'p95_response_time': np.percentile(response_times, 95),
-                    'p99_response_time': np.percentile(response_times, 99),
-                    'std_response_time': np.std(response_times)
-                },
-                'throughput_stats': {
-                    'avg_request_size_kb': np.mean([r.get('request_size', 0) for r in successful_requests]),
-                    'avg_response_size_kb': np.mean([r.get('response_size', 0) for r in successful_requests]),
-                    'total_data_transferred_mb': sum([r.get('response_size', 0) for r in successful_requests]) / 1024
-                },
-                'error_analysis': self._analyze_errors(failed_requests),
-                'system_metrics': self._analyze_system_metrics(test_start_time, test_start_time + total_test_time),
-                'timestamp': datetime.now().isoformat(),
-                'raw_results': test_results  # 保存原始数据用于详细分析
-            }
-        else:
-            performance_stats = {
-                'test_name': f'并发负载测试 - {endpoint}',
+        if not successful_requests:
+            return {
+                'test_name': 'recommend-single并发测试',
+                'test_config': test_config,
                 'error': '所有请求都失败了',
                 'failed_requests': len(failed_requests),
                 'error_analysis': self._analyze_errors(failed_requests),
                 'timestamp': datetime.now().isoformat()
             }
         
-        logger.info(f"✅ 并发负载测试完成")
-        logger.info(f"  总请求数: {len(test_results)}")
-        logger.info(f"  成功率: {performance_stats.get('request_stats', {}).get('success_rate', 0):.2f}%")
-        logger.info(f"  平均响应时间: {performance_stats.get('response_time_stats', {}).get('avg_response_time', 0):.2f}ms")
-        logger.info(f"  QPS: {performance_stats.get('request_stats', {}).get('requests_per_second', 0):.2f}")
+        # 响应时间统计
+        response_times = [r['response_time'] for r in successful_requests]
+        match_scores = [r.get('match_score', 0) for r in successful_requests if 'match_score' in r]
+        
+        # 用户-政策组合统计
+        user_policy_stats = {}
+        for r in successful_requests:
+            key = f"{r.get('user_id', 'unknown')}-{r.get('policy_id', 'unknown')}"
+            if key not in user_policy_stats:
+                user_policy_stats[key] = {
+                    'count': 0,
+                    'avg_response_time': 0,
+                    'match_scores': []
+                }
+            user_policy_stats[key]['count'] += 1
+            user_policy_stats[key]['match_scores'].append(r.get('match_score', 0))
+        
+        # 计算平均响应时间
+        for key, stats in user_policy_stats.items():
+            related_requests = [r for r in successful_requests 
+                              if f"{r.get('user_id', 'unknown')}-{r.get('policy_id', 'unknown')}" == key]
+            stats['avg_response_time'] = np.mean([r['response_time'] for r in related_requests])
+        
+        performance_stats = {
+            'test_name': 'recommend-single并发测试',
+            'test_config': test_config,
+            'request_stats': {
+                'total_requests': len(test_results),
+                'successful_requests': len(successful_requests),
+                'failed_requests': len(failed_requests),
+                'success_rate': len(successful_requests) / len(test_results) * 100,
+                'requests_per_second': len(test_results) / total_test_time,
+                'unique_user_policy_combinations': len(user_policy_stats)
+            },
+            'response_time_stats': {
+                'avg_response_time': np.mean(response_times),
+                'min_response_time': min(response_times),
+                'max_response_time': max(response_times),
+                'median_response_time': np.median(response_times),
+                'p90_response_time': np.percentile(response_times, 90),
+                'p95_response_time': np.percentile(response_times, 95),
+                'p99_response_time': np.percentile(response_times, 99),
+                'std_response_time': np.std(response_times)
+            },
+            'match_score_stats': {
+                'avg_match_score': np.mean(match_scores) if match_scores else 0,
+                'min_match_score': min(match_scores) if match_scores else 0,
+                'max_match_score': max(match_scores) if match_scores else 0,
+                'high_match_rate': len([s for s in match_scores if s > 0.5]) / len(match_scores) * 100 if match_scores else 0
+            },
+            'data_transfer_stats': {
+                'avg_request_size': np.mean([r.get('request_size', 0) for r in successful_requests]),
+                'avg_response_size': np.mean([r.get('response_size', 0) for r in successful_requests]),
+                'total_data_mb': sum([r.get('request_size', 0) + r.get('response_size', 0) for r in successful_requests]) / (1024*1024)
+            },
+            'user_policy_combinations': user_policy_stats,
+            'error_analysis': self._analyze_errors(failed_requests),
+            'system_metrics': self._analyze_system_metrics(test_results[0]['start_time'] if test_results else 0, 
+                                                         test_results[-1]['end_time'] if test_results else 0),
+            'timestamp': datetime.now().isoformat(),
+            'raw_results': test_results
+        }
         
         return performance_stats
     
@@ -320,18 +341,26 @@ class ConcurrentPerformanceTester:
         
         error_types = {}
         status_codes = {}
+        user_errors = {}
+        policy_errors = {}
         
         for req in failed_requests:
             error = req.get('error', 'Unknown error')
             status_code = req.get('status_code', 0)
+            user_id = req.get('user_id', 'unknown')
+            policy_id = req.get('policy_id', 'unknown')
             
             error_types[error] = error_types.get(error, 0) + 1
             status_codes[str(status_code)] = status_codes.get(str(status_code), 0) + 1
+            user_errors[user_id] = user_errors.get(user_id, 0) + 1
+            policy_errors[policy_id] = policy_errors.get(policy_id, 0) + 1
         
         return {
             'total_errors': len(failed_requests),
             'error_types': error_types,
             'status_codes': status_codes,
+            'user_error_distribution': user_errors,
+            'policy_error_distribution': policy_errors,
             'error_rate': len(failed_requests)
         }
     
@@ -364,30 +393,29 @@ class ConcurrentPerformanceTester:
     
     def gradual_load_test(self, users: List[Dict], policies: List[Dict],
                          max_concurrent: int = 50, step_size: int = 5, step_duration: int = 30):
-        """渐进式负载测试 - 逐步增加并发用户数"""
-        logger.info(f"📈 开始渐进式负载测试")
+        """渐进式负载测试"""
+        logger.info(f"📈 开始recommend-single渐进式负载测试")
         logger.info(f"  最大并发数: {max_concurrent}")
         logger.info(f"  步长: {step_size}")
         logger.info(f"  每步持续时间: {step_duration}s")
         
         gradual_results = []
         
-        for concurrent_users in range(step_size, max_concurrent + 1, step_size):
-            logger.info(f"🔄 测试并发用户数: {concurrent_users}")
+        for concurrent_requests in range(step_size, max_concurrent + 1, step_size):
+            logger.info(f"🔄 测试并发请求数: {concurrent_requests}")
             
             # 执行当前并发级别的测试
-            result = self.concurrent_load_test(
+            result = self.concurrent_test(
                 users, policies, 
-                concurrent_users=concurrent_users, 
-                test_duration=step_duration,
-                endpoint="recommend"
+                concurrent_requests=concurrent_requests, 
+                test_duration=step_duration
             )
             
-            result['concurrent_level'] = concurrent_users
+            result['concurrent_level'] = concurrent_requests
             gradual_results.append(result)
             
             # 短暂休息让系统恢复
-            time.sleep(5)
+            time.sleep(3)
             
             # 检查是否出现严重问题（成功率过低）
             success_rate = result.get('request_stats', {}).get('success_rate', 0)
@@ -399,11 +427,11 @@ class ConcurrentPerformanceTester:
         gradual_analysis = self._analyze_gradual_results(gradual_results)
         
         logger.info(f"✅ 渐进式负载测试完成")
-        logger.info(f"  最高并发: {gradual_analysis.get('max_stable_concurrent', 0)}")
+        logger.info(f"  最高稳定并发: {gradual_analysis.get('max_stable_concurrent', 0)}")
         logger.info(f"  峰值QPS: {gradual_analysis.get('peak_qps', 0):.2f}")
         
         return {
-            'test_name': '渐进式负载测试',
+            'test_name': 'recommend-single渐进式负载测试',
             'test_results': gradual_results,
             'analysis': gradual_analysis,
             'timestamp': datetime.now().isoformat()
@@ -414,7 +442,6 @@ class ConcurrentPerformanceTester:
         if not results:
             return {}
         
-        # 找到性能拐点
         qps_values = []
         response_times = []
         success_rates = []
@@ -439,7 +466,6 @@ class ConcurrentPerformanceTester:
         optimal_response_time = float('inf')
         
         if stable_results:
-            # 找到QPS最高的稳定点
             max_qps_idx, max_qps, _, _ = max(stable_results, key=lambda x: x[1])
             max_stable_concurrent = concurrent_levels[max_qps_idx]
             peak_qps = max_qps
@@ -453,19 +479,81 @@ class ConcurrentPerformanceTester:
             'total_test_levels': len(results)
         }
     
-    def stress_test(self, users: List[Dict], policies: List[Dict], 
-                   concurrent_users: int = 100, test_duration: int = 300):
-        """压力测试 - 高并发长时间测试"""
-        logger.info(f"💪 开始压力测试")
-        logger.info(f"  并发用户数: {concurrent_users}")
-        logger.info(f"  测试持续时间: {test_duration}s ({test_duration/60:.1f}分钟)")
+    def generate_performance_charts(self, test_results: List[Dict], output_dir: str):
+        """生成性能图表"""
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
         
-        return self.concurrent_load_test(
-            users, policies,
-            concurrent_users=concurrent_users,
-            test_duration=test_duration,
-            endpoint="recommend"
-        )
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        
+        # 设置中文字体
+        plt.rcParams['font.sans-serif'] = ['SimHei', 'Arial', 'DejaVu Sans']
+        plt.rcParams['axes.unicode_minus'] = False
+        
+        # 查找渐进测试结果
+        gradual_test = None
+        for result in test_results:
+            if 'recommend-single渐进式负载测试' in result.get('test_name', ''):
+                gradual_test = result
+                break
+        
+        if gradual_test and 'test_results' in gradual_test:
+            fig, axes = plt.subplots(2, 2, figsize=(15, 10))
+            fig.suptitle('recommend-single接口性能测试报告', fontsize=16, fontweight='bold')
+            
+            gradual_data = gradual_test['test_results']
+            concurrent_levels = [r['concurrent_level'] for r in gradual_data if 'request_stats' in r]
+            qps_values = [r['request_stats']['requests_per_second'] for r in gradual_data if 'request_stats' in r]
+            response_times = [r['response_time_stats']['avg_response_time'] for r in gradual_data if 'response_time_stats' in r]
+            success_rates = [r['request_stats']['success_rate'] for r in gradual_data if 'request_stats' in r]
+            
+            # QPS vs 并发数
+            axes[0, 0].plot(concurrent_levels, qps_values, 'b-o', linewidth=2, markersize=6)
+            axes[0, 0].set_xlabel('并发请求数')
+            axes[0, 0].set_ylabel('QPS (请求/秒)')
+            axes[0, 0].set_title('QPS vs 并发请求数')
+            axes[0, 0].grid(True, alpha=0.3)
+            
+            # 响应时间 vs 并发数
+            axes[0, 1].plot(concurrent_levels, response_times, 'r-s', linewidth=2, markersize=6)
+            axes[0, 1].set_xlabel('并发请求数')
+            axes[0, 1].set_ylabel('平均响应时间 (ms)')
+            axes[0, 1].set_title('响应时间 vs 并发请求数')
+            axes[0, 1].grid(True, alpha=0.3)
+            
+            # 成功率 vs 并发数
+            axes[1, 0].plot(concurrent_levels, success_rates, 'g-^', linewidth=2, markersize=6)
+            axes[1, 0].set_xlabel('并发请求数')
+            axes[1, 0].set_ylabel('成功率 (%)')
+            axes[1, 0].set_title('成功率 vs 并发请求数')
+            axes[1, 0].set_ylim(0, 105)
+            axes[1, 0].grid(True, alpha=0.3)
+            
+            # 响应时间分布
+            all_response_times = []
+            for result in test_results:
+                if 'raw_results' in result:
+                    response_times_raw = [r['response_time'] for r in result['raw_results'] if r.get('success', False)]
+                    all_response_times.extend(response_times_raw)
+            
+            if all_response_times:
+                axes[1, 1].hist(all_response_times, bins=50, alpha=0.7, color='purple', edgecolor='black')
+                axes[1, 1].set_xlabel('响应时间 (ms)')
+                axes[1, 1].set_ylabel('请求数量')
+                axes[1, 1].set_title('响应时间分布')
+                axes[1, 1].grid(True, alpha=0.3)
+            
+            plt.tight_layout()
+            
+            # 保存图表
+            chart_filename = os.path.join(output_dir, f"recommend_single_performance_{timestamp}.png")
+            plt.savefig(chart_filename, dpi=300, bbox_inches='tight')
+            plt.close()
+            
+            logger.info(f"📈 性能图表已保存到: {chart_filename}")
+            return chart_filename
+        
+        return None
     
     def generate_performance_report(self, test_results: List[Dict], output_dir: str = "performance_reports"):
         """生成性能测试报告"""
@@ -479,94 +567,33 @@ class ConcurrentPerformanceTester:
             'test_summary': {
                 'test_time': datetime.now().isoformat(),
                 'total_tests': len(test_results),
+                'test_endpoint': 'recommend-single',
                 'test_types': list(set([r.get('test_name', 'Unknown') for r in test_results]))
             },
             'test_results': test_results,
             'system_info': {
                 'cpu_count': psutil.cpu_count(),
-                'memory_total_gb': psutil.virtual_memory().total / (1024**3),
-                'python_version': os.sys.version
+                'memory_total_gb': psutil.virtual_memory().total / (1024**3)
             }
         }
         
-        json_filename = os.path.join(output_dir, f"performance_report_{timestamp}.json")
+        json_filename = os.path.join(output_dir, f"recommend_single_report_{timestamp}.json")
         with open(json_filename, 'w', encoding='utf-8') as f:
             json.dump(json_report, f, ensure_ascii=False, indent=2)
         
-        # 生成图表报告
-        self.generate_performance_charts(test_results, output_dir, timestamp)
+        # 生成图表
+        chart_file = self.generate_performance_charts(test_results, output_dir)
         
-        logger.info(f"📊 性能报告已生成到目录: {output_dir}")
+        logger.info(f"📊 性能报告已生成:")
+        logger.info(f"  JSON报告: {json_filename}")
+        if chart_file:
+            logger.info(f"  图表文件: {chart_file}")
+        
         return json_filename
     
-    def generate_performance_charts(self, test_results: List[Dict], output_dir: str, timestamp: str):
-        """生成性能图表"""
-        plt.style.use('seaborn-v0_8')
-        fig, axes = plt.subplots(2, 2, figsize=(15, 10))
-        fig.suptitle('政策推荐系统性能测试报告', fontsize=16, fontweight='bold')
-        
-        # 提取渐进测试数据
-        gradual_test = None
-        for result in test_results:
-            if result.get('test_name') == '渐进式负载测试':
-                gradual_test = result
-                break
-        
-        if gradual_test and 'test_results' in gradual_test:
-            gradual_data = gradual_test['test_results']
-            concurrent_levels = [r['concurrent_level'] for r in gradual_data if 'request_stats' in r]
-            qps_values = [r['request_stats']['requests_per_second'] for r in gradual_data if 'request_stats' in r]
-            response_times = [r['response_time_stats']['avg_response_time'] for r in gradual_data if 'response_time_stats' in r]
-            success_rates = [r['request_stats']['success_rate'] for r in gradual_data if 'request_stats' in r]
-            
-            # QPS vs 并发数
-            axes[0, 0].plot(concurrent_levels, qps_values, 'b-o', linewidth=2, markersize=6)
-            axes[0, 0].set_xlabel('并发用户数')
-            axes[0, 0].set_ylabel('QPS (请求/秒)')
-            axes[0, 0].set_title('QPS vs 并发用户数')
-            axes[0, 0].grid(True, alpha=0.3)
-            
-            # 响应时间 vs 并发数
-            axes[0, 1].plot(concurrent_levels, response_times, 'r-s', linewidth=2, markersize=6)
-            axes[0, 1].set_xlabel('并发用户数')
-            axes[0, 1].set_ylabel('平均响应时间 (ms)')
-            axes[0, 1].set_title('响应时间 vs 并发用户数')
-            axes[0, 1].grid(True, alpha=0.3)
-            
-            # 成功率 vs 并发数
-            axes[1, 0].plot(concurrent_levels, success_rates, 'g-^', linewidth=2, markersize=6)
-            axes[1, 0].set_xlabel('并发用户数')
-            axes[1, 0].set_ylabel('成功率 (%)')
-            axes[1, 0].set_title('成功率 vs 并发用户数')
-            axes[1, 0].set_ylim(0, 105)
-            axes[1, 0].grid(True, alpha=0.3)
-        
-        # 响应时间分布（从所有测试中获取）
-        all_response_times = []
-        for result in test_results:
-            if 'raw_results' in result:
-                response_times = [r['response_time'] for r in result['raw_results'] if r.get('success', False)]
-                all_response_times.extend(response_times)
-        
-        if all_response_times:
-            axes[1, 1].hist(all_response_times, bins=50, alpha=0.7, color='purple', edgecolor='black')
-            axes[1, 1].set_xlabel('响应时间 (ms)')
-            axes[1, 1].set_ylabel('请求数量')
-            axes[1, 1].set_title('响应时间分布')
-            axes[1, 1].grid(True, alpha=0.3)
-        
-        plt.tight_layout()
-        
-        # 保存图表
-        chart_filename = os.path.join(output_dir, f"performance_charts_{timestamp}.png")
-        plt.savefig(chart_filename, dpi=300, bbox_inches='tight')
-        plt.close()
-        
-        logger.info(f"📈 性能图表已保存到: {chart_filename}")
-    
-    def run_comprehensive_performance_test(self):
-        """运行综合性能测试套件"""
-        logger.info("🎯 开始运行综合性能测试套件")
+    def run_comprehensive_test(self):
+        """运行recommend-single接口综合性能测试"""
+        logger.info("🎯 开始recommend-single接口综合性能测试")
         
         # 检查服务状态
         if not self.check_service_health():
@@ -574,7 +601,7 @@ class ConcurrentPerformanceTester:
             return None
         
         # 加载测试数据
-        policies, users = self.load_test_data(policy_limit=5, user_limit=10)
+        policies, users = self.load_test_data()
         
         if not policies or not users:
             logger.error("❌ 测试数据加载失败")
@@ -582,48 +609,49 @@ class ConcurrentPerformanceTester:
         
         all_test_results = []
         
-        # 1. 基础并发测试 (10个并发用户，60秒)
+        # 1. 基础并发测试
         logger.info("\n" + "="*60)
-        logger.info("1. 基础并发测试")
+        logger.info("1. 基础并发测试 (10并发, 60秒)")
         logger.info("="*60)
-        basic_test = self.concurrent_load_test(users, policies, concurrent_users=10, test_duration=60)
+        basic_test = self.concurrent_test(users, policies, concurrent_requests=10, test_duration=60)
         all_test_results.append(basic_test)
         
         # 2. 渐进式负载测试
-        logger.info("\n" + "="*60)
-        logger.info("2. 渐进式负载测试")
-        logger.info("="*60)
-        gradual_test = self.gradual_load_test(users, policies, max_concurrent=30, step_size=5, step_duration=30)
-        all_test_results.append(gradual_test)
+        if basic_test.get('request_stats', {}).get('success_rate', 0) > 80:
+            logger.info("\n" + "="*60)
+            logger.info("2. 渐进式负载测试")
+            logger.info("="*60)
+            gradual_test = self.gradual_load_test(users, policies, max_concurrent=40, step_size=5, step_duration=30)
+            all_test_results.append(gradual_test)
+        else:
+            logger.warning("⚠️  基础测试成功率较低，跳过渐进式测试")
         
-        # 3. 压力测试 (如果前面测试表现良好)
+        # 3. 高并发压力测试
         if basic_test.get('request_stats', {}).get('success_rate', 0) > 90:
             logger.info("\n" + "="*60)
-            logger.info("3. 压力测试")
+            logger.info("3. 高并发压力测试 (30并发, 180秒)")
             logger.info("="*60)
-            stress_test = self.stress_test(users, policies, concurrent_users=20, test_duration=180)
+            stress_test = self.concurrent_test(users, policies, concurrent_requests=30, test_duration=180)
             all_test_results.append(stress_test)
-        else:
-            logger.warning("⚠️  基础测试成功率较低，跳过压力测试")
         
-        # 生成综合报告
+        # 生成报告
         report_file = self.generate_performance_report(all_test_results)
         
-        logger.info("✅ 综合性能测试完成！")
+        logger.info("✅ recommend-single接口综合性能测试完成！")
         logger.info(f"📄 详细报告: {report_file}")
         
         return all_test_results
 
 def main():
     """主函数"""
-    print("🚀 政策推荐系统并发性能测试")
+    print("🚀 recommend-single接口专项性能测试")
     print("=" * 80)
     
-    # 创建性能测试器
-    tester = ConcurrentPerformanceTester()
+    # 创建测试器
+    tester = RecommendSingleTester()
     
-    # 运行综合性能测试
-    results = tester.run_comprehensive_performance_test()
+    # 运行综合测试
+    results = tester.run_comprehensive_test()
     
     if results:
         print("\n" + "=" * 80)
@@ -637,20 +665,38 @@ def main():
             if 'request_stats' in result:
                 stats = result['request_stats']
                 print(f"   总请求数: {stats.get('total_requests', 0)}")
+                print(f"   成功请求数: {stats.get('successful_requests', 0)}")
                 print(f"   成功率: {stats.get('success_rate', 0):.2f}%")
                 print(f"   QPS: {stats.get('requests_per_second', 0):.2f}")
+                print(f"   用户-政策组合数: {stats.get('unique_user_policy_combinations', 0)}")
             
             if 'response_time_stats' in result:
                 rt_stats = result['response_time_stats']
                 print(f"   平均响应时间: {rt_stats.get('avg_response_time', 0):.2f}ms")
                 print(f"   95%响应时间: {rt_stats.get('p95_response_time', 0):.2f}ms")
+                print(f"   99%响应时间: {rt_stats.get('p99_response_time', 0):.2f}ms")
+            
+            if 'match_score_stats' in result:
+                match_stats = result['match_score_stats']
+                print(f"   平均匹配度: {match_stats.get('avg_match_score', 0):.4f}")
+                print(f"   高匹配率(>0.5): {match_stats.get('high_match_rate', 0):.1f}%")
             
             if 'analysis' in result:
                 analysis = result['analysis']
                 print(f"   最大稳定并发: {analysis.get('max_stable_concurrent', 0)}")
                 print(f"   峰值QPS: {analysis.get('peak_qps', 0):.2f}")
+                print(f"   最优响应时间: {analysis.get('optimal_response_time', 0):.2f}ms")
         
-        print("\n🎉 性能测试完成！请查看生成的报告文件获取详细分析。")
+        print("\n" + "=" * 80)
+        print("📈 性能指标说明:")
+        print("  - QPS: 每秒处理请求数，越高越好")
+        print("  - 响应时间: 单次请求处理时间，越低越好")
+        print("  - 成功率: 请求成功百分比，应接近100%")
+        print("  - 匹配度: 用户与政策的匹配分数，0-1之间")
+        print("  - P95/P99: 95%/99%的请求在此时间内完成")
+        
+        print("\n🎉 recommend-single接口性能测试完成！")
+        print("📊 请查看生成的报告文件和图表获取详细分析。")
     else:
         print("❌ 性能测试失败")
 
