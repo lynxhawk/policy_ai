@@ -215,7 +215,7 @@ class PolicyUserMatcher:
             
             # 提取所有条件规则（忽略逻辑关系）
             all_conditions = self.extract_all_conditions(condition_root)
-            print(all_conditions)
+            #print(all_conditions)
             total_conditions = len(all_conditions)
             
             if total_conditions == 0:
