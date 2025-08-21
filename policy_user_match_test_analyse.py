@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 class PolicyRecommendationTester:
     """政策推荐系统测试类"""
     
-    def __init__(self, base_url: str = "http://10.1.50.96:8081"):
+    def __init__(self, base_url: str = "http://127.0.0.1:8081"):
         self.base_url = base_url
         self.test_results = {
             'api_tests': [],
