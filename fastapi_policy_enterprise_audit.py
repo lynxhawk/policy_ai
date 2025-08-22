@@ -111,16 +111,12 @@ class TolerantEnterprisePreAuditRequest(BaseModel):
         arbitrary_types_allowed = True
 
 
-# 标准响应模型
+# 简化的标准响应模型
 class EnterprisePreAuditAPIResponse(BaseModel):
-    """企业预审响应模型"""
+    """简化的企业预审响应模型"""
     status_code: int = Field(..., description="状态码")
     result: List[int] = Field(..., description="预审结果列表 (0或1)")
     message: str = Field(..., description="响应消息")
-    enterprise_id: Optional[str] = Field(None, description="企业ID")
-    total_policies: Optional[int] = Field(None, description="总政策数")
-    enterprise_policies: Optional[int] = Field(None, description="企业政策数")
-    passed_policies: Optional[int] = Field(None, description="通过的政策数")
 
 
 class EnterprisePolicyPreAuditResult(BaseModel):
@@ -394,10 +390,7 @@ async def preaudit_enterprise_policies(request: Dict = None):
             return EnterprisePreAuditAPIResponse(
                 status_code=200,
                 result=[],
-                message="企业预审完成，无错误",
-                total_policies=0,
-                enterprise_policies=0,
-                passed_policies=0
+                message="企业预审完成，无错误"
             )
         
         # 提取企业和政策数据
@@ -408,17 +401,8 @@ async def preaudit_enterprise_policies(request: Dict = None):
         if not isinstance(policies_data, list):
             policies_data = [policies_data] if policies_data else []
         
-        # 统计企业政策数量
-        enterprise_policy_count = sum(1 for policy in policies_data 
-                                    if enterprise_preaudit_engine.is_enterprise_policy(safe_convert_to_dict(policy)))
-        
         # 批量预审
         results = safe_batch_enterprise_preaudit(enterprise_data, policies_data)
-        
-        # 统计通过数量
-        passed_count = sum(results)
-        enterprise_dict = safe_convert_to_dict(enterprise_data)
-        enterprise_id = enterprise_dict.get('企业ID', 'Unknown')
         
         return EnterprisePreAuditAPIResponse(
             status_code=200,
@@ -463,9 +447,6 @@ async def preaudit_single_enterprise_policy(request: Dict = None):
         
         # 预审单个政策
         result = safe_enterprise_preaudit_single(enterprise_data, policy_data)
-        
-        enterprise_dict = safe_convert_to_dict(enterprise_data)
-        enterprise_id = enterprise_dict.get('企业ID', 'Unknown')
         
         return {
             "status_code": 200,
@@ -626,11 +607,11 @@ async def preaudit_enterprise_detailed(request: Dict = None):
 async def validation_exception_handler(request, exc):
     """捕获Pydantic验证错误，返回0结果而不是422"""
     logger.warning(f"验证错误: {exc}")
-    return EnterprisePreAuditAPIResponse(
-        status_code=200,
-        result=[0],
-        message="企业预审完成，无错误"
-    )
+    return {
+        "status_code": 200,
+        "result": [0],
+        "message": "企业预审完成，无错误"
+    }
 
 
 @app.exception_handler(Exception)
@@ -638,11 +619,11 @@ async def global_exception_handler(request, exc):
     """捕获所有其他异常"""
     logger.error(f"全局异常: {exc}")
     logger.error(traceback.format_exc())
-    return EnterprisePreAuditAPIResponse(
-        status_code=200,
-        result=[0],
-        message="企业预审完成，无错误"
-    )
+    return {
+        "status_code": 200,
+        "result": [0],
+        "message": "企业预审完成，无错误"
+    }
 
 
 if __name__ == "__main__":
