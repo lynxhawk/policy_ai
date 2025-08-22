@@ -130,7 +130,55 @@ class EnterprisePreAuditEngine:
             
         return location_info
     
-    def calculate_operation_years(self, register_time: str) -> Optional[int]:
+    def calculate_work_experience(self, graduation_time: str) -> Optional[int]:
+        """
+        根据法人毕业时间计算毕业年限
+        
+        Args:
+            graduation_time: 毕业时间字符串
+            
+        Returns:
+            毕业年限，失败时返回None
+        """
+        try:
+            if not graduation_time:
+                return None
+                
+            # 尝试解析毕业日期格式
+            graduation_date = None
+            
+            # 支持多种日期格式
+            date_formats = ["%Y-%m-%d", "%Y/%m/%d", "%Y年%m月%d日", "%Y-%m", "%Y年%m月", "%Y"]
+            
+            for fmt in date_formats:
+                try:
+                    graduation_date = datetime.strptime(str(graduation_time), fmt).date()
+                    break
+                except ValueError:
+                    continue
+            
+            # 如果无法解析为日期，尝试提取年份
+            if not graduation_date:
+                graduation_year = self.extract_numeric_value(graduation_time)
+                if graduation_year and 1950 <= graduation_year <= 2030:  # 合理性检查
+                    graduation_date = date(int(graduation_year), 6, 30)  # 默认6月30日毕业
+            
+            if graduation_date:
+                today = date.today()
+                work_years = today.year - graduation_date.year
+                
+                # 如果还没到毕业月份，毕业年限减1
+                if today.month < graduation_date.month or (today.month == graduation_date.month and today.day < graduation_date.day):
+                    work_years -= 1
+                
+                # 毕业年限不能为负数，最小为0
+                return max(0, work_years)
+            
+            return None
+            
+        except Exception as e:
+            self.logger.warning(f"毕业年限计算失败: {graduation_time}, 错误: {e}")
+            return None
         """
         根据注册时间计算经营年限
         
@@ -416,6 +464,12 @@ class EnterprisePreAuditEngine:
         processed_data = enterprise_data.copy()
         
         try:
+            # 计算法人毕业年限（如果有法人毕业时间）
+            if "法人毕业时间" in processed_data:
+                work_years = self.calculate_work_experience(processed_data["法人毕业时间"])
+                if work_years is not None:
+                    processed_data["法人毕业年限"] = work_years
+            
             # 计算实际经营年限（如果没有提供）
             if "经营时间" not in processed_data and "注册时间" in processed_data:
                 operation_years = self.calculate_operation_years(processed_data["注册时间"])
@@ -430,16 +484,6 @@ class EnterprisePreAuditEngine:
                     "注册城市": location_info["市"],
                     "注册区域": location_info["区"]
                 })
-            
-            # 标准化布尔值字段
-            boolean_fields = ["缴纳社保", "营业执照", "纳税情况"]
-            for field in boolean_fields:
-                if field in processed_data:
-                    value = str(processed_data[field]).strip()
-                    if value in ["是", "存续", "True", "true", "1", "有", "正常"]:
-                        processed_data[field] = "是"
-                    else:
-                        processed_data[field] = "否"
             
             # 处理贷款情况字段
             if "贷款情况" in processed_data:
@@ -667,62 +711,5 @@ if __name__ == "__main__":
     # 配置日志
     logging.basicConfig(level=logging.INFO)
     
-    # 示例企业数据
-    enterprise_sample = {
-        "企业ID": "ENT0001",
-        "注册地": "浙江省平湖市",
-        "注册时间": "2018-03-15",
-        "行业": "养老服务",
-        "注册资本（万元）": 500,
-        "缴纳社保": "是",
-        "贷款情况": "未结清",
-        "法人姓名": "张明华",
-        "营业执照": "存续",
-        "法人年龄": 45,
-        "法人毕业时间": "1998-06",
-        "企业规模": "中型企业",
-        "经营时间": 7
-    }
-    
-    # 示例企业政策数据
-    policy_sample = {
-        "政策编号": "POL0015",
-        "标题": "员工制家政服务企业社保补贴",
-        "类型": "企业",
-        "条件": {
-            "逻辑": "AND",
-            "规则": [
-                {"字段": "注册资本（万元）", "操作符": ">=", "值": 30},
-                {"字段": "注册地", "操作符": "contains", "值": "浙江省"},
-                {"字段": "缴纳社保", "操作符": "=", "值": "是"},
-                {"字段": "营业执照", "操作符": "=", "值": "存续"},
-                {"字段": "经营时间", "操作符": ">=", "值": 3}
-            ]
-        }
-    }
-    
     # 创建企业预审引擎
     audit_engine = EnterprisePreAuditEngine()
-    
-    # 进行单个企业预审
-    audit_result = audit_engine.pre_audit_enterprise_policy(enterprise_sample, policy_sample)
-    print(f"企业预审结果: {audit_result} ({'通过' if audit_result == 1 else '不通过'})")
-    
-    # 批量预审示例
-    policies_list = [policy_sample]
-    batch_results = audit_engine.batch_pre_audit_enterprise(enterprise_sample, policies_list)
-    print(f"批量预审结果: {batch_results}")
-    
-    # 生成审核摘要
-    enterprises_list = [enterprise_sample]
-    summary = audit_engine.get_enterprise_audit_summary(enterprises_list, policies_list, [batch_results])
-    print("审核摘要:")
-    print(f"- 总企业数: {summary['总企业数']}")
-    print(f"- 企业政策数: {summary['企业政策数']}")
-    print(f"- 总通过率: {summary['总通过率']}")
-    
-    for enterprise_stat in summary['企业通过统计']:
-        print(f"- 企业 {enterprise_stat['企业ID']}: 通过率 {enterprise_stat['通过率']}")
-    
-    for policy_stat in summary['政策通过统计']:
-        print(f"- 政策 {policy_stat['政策编号']}: 通过率 {policy_stat['通过率']}")

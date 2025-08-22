@@ -13,7 +13,7 @@ import logging
 import traceback
 
 # 导入企业预审模块
-from enterprise_policy_preaudit import EnterprisePreAuditEngine
+from policy_enterprise_audit import EnterprisePreAuditEngine
 
 # 配置日志
 logging.basicConfig(level=logging.INFO)
@@ -32,25 +32,25 @@ enterprise_preaudit_engine = EnterprisePreAuditEngine()
 # 宽容的Pydantic模型定义
 class TolerantEnterpriseData(BaseModel):
     """宽容的企业数据模型 - 接受任何输入"""
-    企业ID: Optional[Any] = Field(None, description="企业ID")
-    企业名称: Optional[Any] = Field(None, description="企业名称")
-    注册地: Optional[Any] = Field(None, description="注册地址")
-    注册时间: Optional[Any] = Field(None, description="注册时间")
-    行业: Optional[Any] = Field(None, description="所属行业")
-    注册资本: Optional[Any] = Field(None, description="注册资本（万元）")
-    注册资本（万元）: Optional[Any] = Field(None, description="注册资本（万元）")
-    缴纳社保: Optional[Any] = Field(None, description="是否缴纳社保")
-    贷款情况: Optional[Any] = Field(None, description="贷款情况")
-    法人姓名: Optional[Any] = Field(None, description="法人姓名")
-    营业执照: Optional[Any] = Field(None, description="营业执照状态")
-    法人年龄: Optional[Any] = Field(None, description="法人年龄")
-    法人毕业时间: Optional[Any] = Field(None, description="法人毕业时间")
-    企业规模: Optional[Any] = Field(None, description="企业规模")
-    经营时间: Optional[Any] = Field(None, description="经营时间（年）")
-    员工人数: Optional[Any] = Field(None, description="员工人数")
-    年营业额: Optional[Any] = Field(None, description="年营业额")
-    纳税情况: Optional[Any] = Field(None, description="纳税情况")
-    资质证书: Optional[Any] = Field(None, description="资质证书")
+    企业ID: Optional[Any] = Field(None, description="企业ID", alias="企业ID")
+    企业名称: Optional[Any] = Field(None, description="企业名称", alias="企业名称")
+    注册地: Optional[Any] = Field(None, description="注册地址", alias="注册地")
+    注册时间: Optional[Any] = Field(None, description="注册时间", alias="注册时间")
+    行业: Optional[Any] = Field(None, description="所属行业", alias="行业")
+    注册资本: Optional[Any] = Field(None, description="注册资本（万元）", alias="注册资本")
+    注册资本万元: Optional[Any] = Field(None, description="注册资本（万元）", alias="注册资本（万元）")
+    缴纳社保: Optional[Any] = Field(None, description="是否缴纳社保", alias="缴纳社保")
+    贷款情况: Optional[Any] = Field(None, description="贷款情况", alias="贷款情况")
+    法人姓名: Optional[Any] = Field(None, description="法人姓名", alias="法人姓名")
+    营业执照: Optional[Any] = Field(None, description="营业执照状态", alias="营业执照")
+    法人年龄: Optional[Any] = Field(None, description="法人年龄", alias="法人年龄")
+    法人毕业时间: Optional[Any] = Field(None, description="法人毕业时间", alias="法人毕业时间")
+    企业规模: Optional[Any] = Field(None, description="企业规模", alias="企业规模")
+    经营时间: Optional[Any] = Field(None, description="经营时间（年）", alias="经营时间")
+    员工人数: Optional[Any] = Field(None, description="员工人数", alias="员工人数")
+    年营业额: Optional[Any] = Field(None, description="年营业额", alias="年营业额")
+    纳税情况: Optional[Any] = Field(None, description="纳税情况", alias="纳税情况")
+    资质证书: Optional[Any] = Field(None, description="资质证书", alias="资质证书")
 
     class Config:
         # 允许任何额外字段
@@ -172,25 +172,8 @@ def safe_normalize_enterprise_data(enterprise_dict: Dict) -> Dict:
     
     for key, value in enterprise_dict.items():
         try:
-            # 处理布尔值字段
-            if key in ['缴纳社保', '营业执照', '纳税情况']:
-                if value is not None:
-                    v_str = str(value).strip().lower()
-                    yes_values = ["是", "yes", "true", "1", "有", "对", "存续", "正常"]
-                    no_values = ["否", "no", "false", "0", "无", "不是", "没有", "异常", "吊销", "注销"]
-                    
-                    if any(v_str == y.lower() for y in yes_values):
-                        normalized[key] = "是"
-                    elif any(v_str == n.lower() for n in no_values):
-                        normalized[key] = "否"
-                    else:
-                        # 无法识别，保持原值
-                        normalized[key] = value
-                else:
-                    normalized[key] = None
-            
             # 处理数值字段
-            elif key in ['注册资本', '注册资本（万元）', '法人年龄', '经营时间', '员工人数', '年营业额']:
+            if key in ['注册资本', '注册资本（万元）', '法人年龄', '经营时间', '员工人数', '年营业额']:
                 if value is not None:
                     try:
                         # 提取数字
@@ -254,7 +237,7 @@ def safe_normalize_enterprise_data(enterprise_dict: Dict) -> Dict:
                 else:
                     normalized[key] = None
             
-            # 其他字段保持原样
+            # 其他字段保持原样（包括缴纳社保、营业执照等）
             else:
                 normalized[key] = value
                 
@@ -440,11 +423,7 @@ async def preaudit_enterprise_policies(request: Dict = None):
         return EnterprisePreAuditAPIResponse(
             status_code=200,
             result=results,
-            message="企业预审完成，无错误",
-            enterprise_id=str(enterprise_id),
-            total_policies=len(policies_data),
-            enterprise_policies=enterprise_policy_count,
-            passed_policies=passed_count
+            message="企业预审完成，无错误"
         )
         
     except Exception as e:
@@ -453,10 +432,7 @@ async def preaudit_enterprise_policies(request: Dict = None):
         return EnterprisePreAuditAPIResponse(
             status_code=200,
             result=[],
-            message="企业预审完成，无错误",
-            total_policies=0,
-            enterprise_policies=0,
-            passed_policies=0
+            message="企业预审完成，无错误"
         )
 
 
@@ -494,9 +470,7 @@ async def preaudit_single_enterprise_policy(request: Dict = None):
         return {
             "status_code": 200,
             "result": result,
-            "message": "企业预审完成，无错误",
-            "enterprise_id": str(enterprise_id),
-            "is_enterprise_policy": is_enterprise_policy
+            "message": "企业预审完成，无错误"
         }
         
     except Exception as e:
@@ -505,8 +479,7 @@ async def preaudit_single_enterprise_policy(request: Dict = None):
         return {
             "status_code": 200,
             "result": 0,
-            "message": "企业预审完成，无错误",
-            "is_enterprise_policy": False
+            "message": "企业预审完成，无错误"
         }
 
 
@@ -555,11 +528,7 @@ async def batch_enterprise_preaudit(request: Dict = None):
         return {
             "status_code": 200,
             "result": all_results,
-            "message": "批量企业预审完成，无错误",
-            "total_enterprises": len(enterprises_data),
-            "enterprise_policies": len(enterprise_policies),
-            "total_audits": len(all_results),
-            "total_passed": total_passed
+            "message": "批量企业预审完成，无错误"
         }
         
     except Exception as e:
@@ -660,10 +629,7 @@ async def validation_exception_handler(request, exc):
     return EnterprisePreAuditAPIResponse(
         status_code=200,
         result=[0],
-        message="企业预审完成，无错误",
-        total_policies=0,
-        enterprise_policies=0,
-        passed_policies=0
+        message="企业预审完成，无错误"
     )
 
 
@@ -675,10 +641,7 @@ async def global_exception_handler(request, exc):
     return EnterprisePreAuditAPIResponse(
         status_code=200,
         result=[0],
-        message="企业预审完成，无错误",
-        total_policies=0,
-        enterprise_policies=0,
-        passed_policies=0
+        message="企业预审完成，无错误"
     )
 
 

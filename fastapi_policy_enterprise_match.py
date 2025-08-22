@@ -13,7 +13,7 @@ import logging
 import traceback
 
 # 导入企业匹配模块
-from enterprise_policy_matcher import EnterprisePolicyMatcher, EnterprisePolicyRecommendationEngine
+from policy_enterprise_match import EnterprisePolicyMatcher, EnterprisePolicyRecommendationEngine
 
 # 配置日志
 logging.basicConfig(level=logging.INFO)
@@ -34,24 +34,24 @@ recommendation_engine = EnterprisePolicyRecommendationEngine()
 # 更宽容的Pydantic模型定义
 class TolerantEnterpriseData(BaseModel):
     """宽容的企业数据模型 - 接受任何输入"""
-    企业ID: Optional[Any] = Field(None, description="企业ID")
-    注册地: Optional[Any] = Field(None, description="注册地址")
-    注册时间: Optional[Any] = Field(None, description="注册时间")
-    行业: Optional[Any] = Field(None, description="所属行业")
-    注册资本: Optional[Any] = Field(None, description="注册资本（万元）")
-    注册资本（万元）: Optional[Any] = Field(None, description="注册资本（万元）")
-    缴纳社保: Optional[Any] = Field(None, description="是否缴纳社保")
-    贷款情况: Optional[Any] = Field(None, description="贷款情况")
-    法人姓名: Optional[Any] = Field(None, description="法人姓名")
-    营业执照: Optional[Any] = Field(None, description="营业执照状态")
-    法人年龄: Optional[Any] = Field(None, description="法人年龄")
-    法人毕业时间: Optional[Any] = Field(None, description="法人毕业时间")
-    企业规模: Optional[Any] = Field(None, description="企业规模")
-    经营时间: Optional[Any] = Field(None, description="经营时间（年）")
-    员工人数: Optional[Any] = Field(None, description="员工人数")
-    年营业额: Optional[Any] = Field(None, description="年营业额")
-    纳税情况: Optional[Any] = Field(None, description="纳税情况")
-    资质证书: Optional[Any] = Field(None, description="资质证书")
+    企业ID: Optional[Any] = Field(None, description="企业ID", alias="企业ID")
+    注册地: Optional[Any] = Field(None, description="注册地址", alias="注册地")
+    注册时间: Optional[Any] = Field(None, description="注册时间", alias="注册时间")
+    行业: Optional[Any] = Field(None, description="所属行业", alias="行业")
+    注册资本: Optional[Any] = Field(None, description="注册资本（万元）", alias="注册资本")
+    注册资本万元: Optional[Any] = Field(None, description="注册资本（万元）", alias="注册资本（万元）")
+    缴纳社保: Optional[Any] = Field(None, description="是否缴纳社保", alias="缴纳社保")
+    贷款情况: Optional[Any] = Field(None, description="贷款情况", alias="贷款情况")
+    法人姓名: Optional[Any] = Field(None, description="法人姓名", alias="法人姓名")
+    营业执照: Optional[Any] = Field(None, description="营业执照状态", alias="营业执照")
+    法人年龄: Optional[Any] = Field(None, description="法人年龄", alias="法人年龄")
+    法人毕业时间: Optional[Any] = Field(None, description="法人毕业时间", alias="法人毕业时间")
+    企业规模: Optional[Any] = Field(None, description="企业规模", alias="企业规模")
+    经营时间: Optional[Any] = Field(None, description="经营时间（年）", alias="经营时间")
+    员工人数: Optional[Any] = Field(None, description="员工人数", alias="员工人数")
+    年营业额: Optional[Any] = Field(None, description="年营业额", alias="年营业额")
+    纳税情况: Optional[Any] = Field(None, description="纳税情况", alias="纳税情况")
+    资质证书: Optional[Any] = Field(None, description="资质证书", alias="资质证书")
 
     class Config:
         # 允许任何额外字段
@@ -121,9 +121,6 @@ class EnterpriseRecommendationAPIResponse(BaseModel):
     status_code: int = Field(..., description="状态码")
     result: Union[List[float], float, List[Dict]] = Field(..., description="匹配分数或推荐结果")
     message: str = Field(..., description="响应消息")
-    enterprise_id: Optional[str] = Field(None, description="企业ID")
-    total_policies: Optional[int] = Field(None, description="总政策数")
-    matched_policies: Optional[int] = Field(None, description="匹配政策数")
 
 
 class EnterpriseRecommendationDetailResponse(BaseModel):
@@ -131,10 +128,6 @@ class EnterpriseRecommendationDetailResponse(BaseModel):
     status_code: int = Field(..., description="状态码")
     result: List[Dict] = Field(..., description="详细推荐结果")
     message: str = Field(..., description="响应消息")
-    enterprise_id: Optional[str] = Field(None, description="企业ID")
-    total_policies: int = Field(..., description="总政策数")
-    matched_policies: int = Field(..., description="匹配政策数")
-    average_score: float = Field(..., description="平均匹配分数")
 
 
 # 辅助函数
@@ -166,25 +159,8 @@ def safe_normalize_enterprise_data(enterprise_dict: Dict) -> Dict:
     
     for key, value in enterprise_dict.items():
         try:
-            # 处理布尔值字段
-            if key in ['缴纳社保', '营业执照', '纳税情况']:
-                if value is not None:
-                    v_str = str(value).strip().lower()
-                    yes_values = ["是", "yes", "true", "1", "有", "对", "存续", "正常"]
-                    no_values = ["否", "no", "false", "0", "无", "不是", "没有", "异常"]
-                    
-                    if any(v_str == y.lower() for y in yes_values):
-                        normalized[key] = "是"
-                    elif any(v_str == n.lower() for n in no_values):
-                        normalized[key] = "否"
-                    else:
-                        # 无法识别，保持原值
-                        normalized[key] = value
-                else:
-                    normalized[key] = None
-            
             # 处理数值字段
-            elif key in ['注册资本', '注册资本（万元）', '法人年龄', '经营时间', '员工人数', '年营业额']:
+            if key in ['注册资本', '注册资本（万元）', '法人年龄', '经营时间', '员工人数', '年营业额']:
                 if value is not None:
                     try:
                         # 提取数字
@@ -221,7 +197,7 @@ def safe_normalize_enterprise_data(enterprise_dict: Dict) -> Dict:
                 else:
                     normalized[key] = None
             
-            # 其他字段保持原样
+            # 其他字段保持原样（包括缴纳社保、营业执照等）
             else:
                 normalized[key] = value
                 
@@ -355,10 +331,7 @@ async def recommend_enterprise_policies(request: Dict = None):
         return EnterpriseRecommendationAPIResponse(
             status_code=200,
             result=scores,
-            message="计算正常，无错误",
-            enterprise_id=str(enterprise_id),
-            total_policies=len(enterprise_policies),
-            matched_policies=matched_count
+            message="计算正常，无错误"
         )
         
     except Exception as e:
@@ -367,9 +340,7 @@ async def recommend_enterprise_policies(request: Dict = None):
         return EnterpriseRecommendationAPIResponse(
             status_code=200,
             result=[],
-            message="计算正常，无错误",
-            total_policies=0,
-            matched_policies=0
+            message="计算正常，无错误"
         )
 
 
@@ -402,9 +373,7 @@ async def recommend_single_enterprise_policy(request: Dict = None):
             return EnterpriseRecommendationAPIResponse(
                 status_code=200,
                 result=0.0,
-                message="计算正常，无错误（非企业政策）",
-                total_policies=0,
-                matched_policies=0
+                message="计算正常，无错误（非企业政策）"
             )
         
         # 计算匹配分数
@@ -414,10 +383,7 @@ async def recommend_single_enterprise_policy(request: Dict = None):
         return EnterpriseRecommendationAPIResponse(
             status_code=200,
             result=score,
-            message="计算正常，无错误",
-            enterprise_id=str(enterprise_id),
-            total_policies=1,
-            matched_policies=1 if score > 0 else 0
+            message="计算正常，无错误"
         )
         
     except Exception as e:
@@ -426,9 +392,7 @@ async def recommend_single_enterprise_policy(request: Dict = None):
         return EnterpriseRecommendationAPIResponse(
             status_code=200,
             result=0.0,
-            message="计算正常，无错误",
-            total_policies=0,
-            matched_policies=0
+            message="计算正常，无错误"
         )
 
 
@@ -482,11 +446,7 @@ async def recommend_enterprise_policies_detailed(request: Dict = None):
         return EnterpriseRecommendationDetailResponse(
             status_code=200,
             result=detailed_results,
-            message="计算正常，无错误",
-            enterprise_id=str(enterprise_id),
-            total_policies=total_policies,
-            matched_policies=matched_policies,
-            average_score=round(average_score, 2)
+            message="计算正常，无错误"
         )
         
     except Exception as e:
@@ -495,10 +455,7 @@ async def recommend_enterprise_policies_detailed(request: Dict = None):
         return EnterpriseRecommendationDetailResponse(
             status_code=200,
             result=[],
-            message="计算正常，无错误",
-            total_policies=0,
-            matched_policies=0,
-            average_score=0.0
+            message="计算正常，无错误"
         )
 
 
@@ -559,9 +516,7 @@ async def batch_recommend_enterprises(request: Dict = None):
         return EnterpriseRecommendationAPIResponse(
             status_code=200,
             result=all_scores,
-            message="计算正常，无错误",
-            total_policies=len(enterprise_policies) * len(enterprises_data),
-            matched_policies=total_matched
+            message="计算正常，无错误"
         )
         
     except Exception as e:
@@ -570,9 +525,7 @@ async def batch_recommend_enterprises(request: Dict = None):
         return EnterpriseRecommendationAPIResponse(
             status_code=200,
             result=[],
-            message="计算正常，无错误",
-            total_policies=0,
-            matched_policies=0
+            message="计算正常，无错误"
         )
 
 
@@ -584,9 +537,7 @@ async def validation_exception_handler(request, exc):
     return EnterpriseRecommendationAPIResponse(
         status_code=200,
         result=0.0,
-        message="计算正常，无错误",
-        total_policies=0,
-        matched_policies=0
+        message="计算正常，无错误"
     )
 
 

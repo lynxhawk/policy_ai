@@ -46,6 +46,7 @@ class PolicyUserMatcher:
                 # 尝试转换为数字
                 if str_value.replace('.', '').replace('-', '').isdigit():
                     if '.' in str_value:
+                        
                         return float(str_value)
                     else:
                         return int(str_value)

@@ -128,7 +128,55 @@ class EnterprisePolicyMatcher:
             
         return location_info
     
-    def calculate_operation_years(self, register_time: str) -> Optional[int]:
+    def calculate_work_experience(self, graduation_time: str) -> Optional[int]:
+        """
+        根据法人毕业时间计算毕业年限
+        
+        Args:
+            graduation_time: 毕业时间字符串
+            
+        Returns:
+            毕业年限，失败时返回None
+        """
+        try:
+            if not graduation_time:
+                return None
+                
+            # 尝试解析毕业日期格式
+            graduation_date = None
+            
+            # 支持多种日期格式
+            date_formats = ["%Y-%m-%d", "%Y/%m/%d", "%Y年%m月%d日", "%Y-%m", "%Y年%m月", "%Y"]
+            
+            for fmt in date_formats:
+                try:
+                    graduation_date = datetime.strptime(str(graduation_time), fmt).date()
+                    break
+                except ValueError:
+                    continue
+            
+            # 如果无法解析为日期，尝试提取年份
+            if not graduation_date:
+                graduation_year = self.extract_numeric_value(graduation_time)
+                if graduation_year and 1950 <= graduation_year <= 2030:  # 合理性检查
+                    graduation_date = date(int(graduation_year), 6, 30)  # 默认6月30日毕业
+            
+            if graduation_date:
+                today = date.today()
+                work_years = today.year - graduation_date.year
+                
+                # 如果还没到毕业月份，毕业年限减1
+                if today.month < graduation_date.month or (today.month == graduation_date.month and today.day < graduation_date.day):
+                    work_years -= 1
+                
+                # 毕业年限不能为负数，最小为0
+                return max(0, work_years)
+            
+            return None
+            
+        except Exception as e:
+            self.logger.warning(f"毕业年限计算失败: {graduation_time}, 错误: {e}")
+            return None
         """
         根据注册时间计算经营年限
         
@@ -323,6 +371,12 @@ class EnterprisePolicyMatcher:
         processed_data = enterprise_data.copy()
         
         try:
+            # 计算法人毕业年限（如果有法人毕业时间）
+            if "法人毕业时间" in processed_data:
+                work_years = self.calculate_work_experience(processed_data["法人毕业时间"])
+                if work_years is not None:
+                    processed_data["法人毕业年限"] = work_years
+            
             # 计算实际经营年限（如果没有提供）
             if "经营时间" not in processed_data and "注册时间" in processed_data:
                 operation_years = self.calculate_operation_years(processed_data["注册时间"])
@@ -337,16 +391,6 @@ class EnterprisePolicyMatcher:
                     "注册城市": location_info["市"],
                     "注册区域": location_info["区"]
                 })
-            
-            # 标准化布尔值字段
-            boolean_fields = ["缴纳社保", "营业执照"]
-            for field in boolean_fields:
-                if field in processed_data:
-                    value = str(processed_data[field]).strip()
-                    if value in ["是", "存续", "True", "true", "1", "有"]:
-                        processed_data[field] = "是"
-                    else:
-                        processed_data[field] = "否"
             
             # 处理贷款情况字段
             if "贷款情况" in processed_data:
@@ -578,57 +622,3 @@ class EnterprisePolicyRecommendationEngine:
         """静态方法包装器，保持向后兼容"""
         matcher = EnterprisePolicyMatcher()
         return matcher.calculate_enterprise_match_score(enterprise_data, policy_data)
-
-
-# 示例使用
-if __name__ == "__main__":
-    # 配置日志
-    logging.basicConfig(level=logging.INFO)
-    
-    # 示例企业数据
-    enterprise_sample = {
-        "企业ID": "ENT0001",
-        "注册地": "浙江省平湖市",
-        "注册时间": "2018-03-15",
-        "行业": "养老服务",
-        "注册资本（万元）": 500,
-        "缴纳社保": "是",
-        "贷款情况": "未结清",
-        "法人姓名": "张明华",
-        "营业执照": "存续",
-        "法人年龄": 45,
-        "法人毕业时间": "1998-06",
-        "企业规模": "中型企业",
-        "经营时间": 7
-    }
-    
-    # 示例政策数据
-    policy_sample = {
-        "政策编号": "POL001",
-        "政策名称": "中小企业发展扶持政策",
-        "政策类型": "企业",
-        "适用对象": "中小企业",
-        "条件": {
-            "逻辑关系": "AND",
-            "规则": [
-                {"字段": "注册资本（万元）", "操作符": "<=", "值": 1000},
-                {"字段": "经营时间", "操作符": ">=", "值": 3},
-                {"字段": "缴纳社保", "操作符": "=", "值": "是"}
-            ]
-        }
-    }
-    
-    # 创建匹配器
-    matcher = EnterprisePolicyMatcher()
-    
-    # 计算匹配分数
-    score = matcher.calculate_enterprise_match_score(enterprise_sample, policy_sample)
-    print(f"匹配分数: {score}")
-    
-    # 使用推荐引擎
-    engine = EnterprisePolicyRecommendationEngine()
-    recommendations = engine.recommend_policies_for_enterprise(enterprise_sample, [policy_sample])
-    
-    print("推荐结果:")
-    for rec in recommendations:
-        print(f"- {rec['政策名称']}: {rec['匹配分数']}")
