@@ -1,0 +1,68 @@
+services:
+  fastapi-policy-enterprise-audit:
+    image: policy_ai:latest
+    container_name: fastapi_policy_enterprise_audit
+    ports:
+      - "8084:8000"
+    volumes:
+      - .:/app  # 挂载当前目录到容器的 /app
+    working_dir: /app
+    environment:
+      - SERVICE_NAME=fastapi_policy_enterprise_audit
+      - PYTHONPATH=/app
+    command: ["python", "-m", "uvicorn", "fastapi_policy_enterprise_audit:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    restart: unless-stopped
+    networks:
+      - policy-network
+
+  fastapi-policy-enterprise-match:
+    image: policy_ai:latest
+    container_name: fastapi_policy_enterprise_match
+    ports:
+      - "8083:8000"
+    volumes:
+      - .:/app  # 挂载当前目录到容器的 /app
+    working_dir: /app
+    environment:
+      - SERVICE_NAME=fastapi_policy_enterprise_match
+      - PYTHONPATH=/app
+    command: ["python", "-m", "uvicorn", "fastapi_policy_enterprise_match:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    restart: unless-stopped
+    networks:
+      - policy-network
+
+  fastapi-policy-user-audit:
+    image: policy_ai:latest
+    container_name: fastapi_policy_user_audit
+    ports:
+      - "8082:8000"
+    volumes:
+      - .:/app  # 挂载当前目录到容器的 /app
+    working_dir: /app
+    environment:
+      - SERVICE_NAME=fastapi_policy_user_audit
+      - PYTHONPATH=/app
+    command: ["python", "-m", "uvicorn", "fastapi_policy_user_audit:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    restart: unless-stopped
+    networks:
+      - policy-network
+
+  fastapi-policy-user-match:
+    image: policy_ai:latest
+    container_name: fastapi_policy_user_match
+    ports:
+      - "8081:8000"
+    volumes:
+      - .:/app  # 挂载当前目录到容器的 /app
+    working_dir: /app
+    environment:
+      - SERVICE_NAME=fastapi_policy_user_match
+      - PYTHONPATH=/app
+    command: ["python", "-m", "uvicorn", "fastapi_policy_user_match:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    restart: unless-stopped
+    networks:
+      - policy-network
+
+networks:
+  policy-network:
+    driver: bridge
