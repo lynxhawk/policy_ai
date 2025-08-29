@@ -8,10 +8,11 @@ services:
       - "8083:8083" 
       - "8084:8084"
     volumes:
-      - .:/workspace  # 挂载到 /workspace 而不是 /app
-    working_dir: /workspace  # 工作目录改为 /workspace
+      # 使用实际路径挂载
+      - /home/lynxhawk/policy_ai:/home/lynxhawk/policy_ai
+    working_dir: /home/lynxhawk/policy_ai
     environment:
-      - PYTHONPATH=/workspace
+      - PYTHONPATH=/home/lynxhawk/policy_ai
     command: >
       bash -c "
       python -m uvicorn fastapi_policy_user_match:app --host 0.0.0.0 --port 8081 --reload &
