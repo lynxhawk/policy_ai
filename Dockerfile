@@ -21,7 +21,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 RUN pip install supervisor
 
 # 复制应用代码
-COPY . .
+#COPY . .
 
 # 暴露端口（这里列出所有可能用到的端口）
 EXPOSE 8081 8082 8083 8084
