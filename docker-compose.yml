@@ -20,7 +20,7 @@ services:
       python -m uvicorn fastapi_policy_enterprise_audit:app --host 0.0.0.0 --port 8084 --reload &
       wait
       "
-    restart: unless-stopped
+    restart: always
     networks:
       - policy-network
 
