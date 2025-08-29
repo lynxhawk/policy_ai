@@ -62,9 +62,10 @@ class SimpleAPITester:
                             user = json.load(f)
                             users.append(user)
                     except Exception as e:
-                        print(f"端口 {port} - 加载用户文件 {file} 失败: {e}")
+                        print(f"端口 {port} - 加载{'企业' if 'enterprise' in service['user_folder'] else '用户'}文件 {file} 失败: {e}")
         
-        print(f"端口 {port} ({service['name']}) - 加载数据: 政策 {len(policies)} (编号{policy_start}-{policy_end}), 用户 {len(users)}")
+        data_type = "企业" if "enterprise" in service["user_folder"] else "用户"
+        print(f"端口 {port} ({service['name']}) - 加载数据: 政策 {len(policies)} (编号{policy_start}-{policy_end}), {data_type} {len(users)}")
         return users, policies
     
     def format_result(self, result, endpoint):
@@ -85,10 +86,18 @@ class SimpleAPITester:
         try:
             service = self.services[port]
             endpoint = f"{self.base_url}:{port}/{service['endpoint']}"
-            payload = {
-                "user": user,
-                "policy": policy
-            }
+            
+            # 根据端口决定payload的key名称
+            if port in [8083, 8084]:  # 企业相关接口
+                payload = {
+                    "enterprise": user,  # 企业接口使用enterprise字段
+                    "policy": policy
+                }
+            else:  # 用户相关接口
+                payload = {
+                    "user": user,  # 用户接口使用user字段
+                    "policy": policy
+                }
             
             response = requests.post(
                 endpoint,
@@ -153,6 +162,8 @@ class SimpleAPITester:
         print("📋 测试规则:")
         print("   - 政策1-8: 用于用户匹配和预审测试")
         print("   - 政策9-16: 用于企业匹配和预审测试")
+        print("   - 用户接口payload使用'user'字段")
+        print("   - 企业接口payload使用'enterprise'字段")
         print("   - 匹配度结果: 保留两位小数")
         print("   - 预审结果: 返回0或1")
         print("-" * 60)
