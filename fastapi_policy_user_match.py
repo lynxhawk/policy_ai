@@ -34,8 +34,8 @@ data_processor = DataProcessor()
 @app.get("/health", summary="健康检查", description="检查API服务状态")
 async def health_check():
     return {
-        "status": "healthy", 
-        "service": "政策匹配系统", 
+        "status": "healthy",
+        "service": "政策匹配系统",
         "match_mode": "strict",
         "result_type": "binary (0 or 1)",
         "tolerance": "maximum",
@@ -53,28 +53,28 @@ async def recommend_single_policy(request: Request):
     try:
         # 解析请求
         request_data = await data_processor.parse_request_safely(request)
-        
+
         # 提取用户和政策数据
         user_data = request_data.get('user', {})
         policy_data = request_data.get('policy', {})
-        
+
         # 处理数据
         user_dict = data_processor.process_user_data(user_data)
         policy_dict = data_processor.process_policy_data(policy_data)
-        
+
         # 验证并匹配
         if data_processor.validate_match_input(user_dict, policy_dict):
             result = match_engine.match_policy(user_dict, policy_dict)
             result = 1 if result else 0
         else:
             result = 0
-        
+
         return {
             "status_code": 200,
             "result": result,
             "message": "匹配完成"
         }
-        
+
     except Exception as e:
         logger.error(f"单个政策匹配异常: {e}")
         logger.error(traceback.format_exc())
@@ -87,55 +87,63 @@ async def recommend_single_policy(request: Request):
 
 @app.post("/batch-recommend",
           summary="批量用户匹配",
-          description="多个用户与单个政策进行匹配，自动处理非法输入")
+          description="多个用户与单个政策进行匹配，只返回匹配成功的用户ID")
 async def batch_recommend(request: Request):
     """
-    批量用户匹配接口 - 多个用户与单个政策匹配
+    批量用户匹配接口 - 多个用户与单个政策匹配，只返回匹配的用户ID
     """
     try:
         # 解析请求
         request_data = await data_processor.parse_request_safely(request)
-        
+
         # 提取用户列表和政策数据
         users_data = request_data.get('users', [])
         policy_data = request_data.get('policy', {})
-        
+
         # 确保users是列表
         if not isinstance(users_data, list):
             users_data = [users_data] if users_data else []
-        
+
         # 处理政策数据（只需要处理一次）
         policy_dict = data_processor.process_policy_data(policy_data)
-        
-        results = []
+
+        matched_user_ids = []
         for user_data in users_data:
             try:
                 # 处理用户数据
                 user_dict = data_processor.process_user_data(user_data)
-                
+
                 # 验证并匹配
                 if data_processor.validate_match_input(user_dict, policy_dict):
                     result = match_engine.match_policy(user_dict, policy_dict)
-                    results.append(1 if result else 0)
-                else:
-                    results.append(0)
-                    
+                    if result == 1:  # 匹配成功
+                        user_id = user_dict.get("用户ID")
+                        if user_id:
+                            matched_user_ids.append(str(user_id))
+                        else:
+                            # 如果没有用户ID，使用原始数据中的ID
+                            raw_user_dict = data_processor.safe_convert_to_dict(
+                                user_data)
+                            raw_user_id = raw_user_dict.get("用户ID")
+                            if raw_user_id:
+                                matched_user_ids.append(str(raw_user_id))
+
             except Exception as e:
                 logger.error(f"处理用户时出错: {e}")
-                results.append(0)
-        
+                continue  # 跳过出错的用户，继续处理下一个
+
         return {
             "status_code": 200,
-            "results": results,
+            "matched_user_ids": matched_user_ids,
             "message": "批量匹配完成"
         }
-        
+
     except Exception as e:
         logger.error(f"批量匹配异常: {e}")
         logger.error(traceback.format_exc())
         return {
             "status_code": 200,
-            "results": [],
+            "matched_user_ids": [],
             "message": "批量匹配完成"
         }
 
@@ -162,7 +170,7 @@ if __name__ == "__main__":
     print("📊 批量匹配接口: http://localhost:8081/batch-recommend")
     print("✨ 特性: 严格0或1结果 + 最大容错性，非法输入返回0而不是错误")
     print("按 Ctrl+C 停止服务")
-    
+
     uvicorn.run(
         "fastapi_policy_user_match:app",
         host="127.0.0.1",
