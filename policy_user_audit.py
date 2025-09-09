@@ -1,6 +1,6 @@
 """
-政策匹配系统核心逻辑模块
-基于严格规则匹配，返回0或1的匹配结果
+政策预审系统核心逻辑模块
+基于严格规则审核，返回0或1的审核结果
 支持复杂的逻辑运算（AND、OR、NOT）
 """
 
@@ -13,50 +13,17 @@ from data_processor import DataProcessor
 logger = logging.getLogger(__name__)
 
 
-class PolicyMatchEngine:
-    """政策匹配引擎核心类"""
+class PolicyPreAuditEngine:
+    """政策预审引擎核心类"""
     
     def __init__(self):
-        """初始化匹配引擎"""
+        """初始化预审引擎"""
         self.logger = logging.getLogger(self.__class__.__name__)
         self.data_processor = DataProcessor()
-    
-    def extract_numeric_value(self, value: Any) -> Optional[float]:
-        """
-        从值中提取数字，支持带单位的字符串如"2年"、"25岁"等
         
-        Args:
-            value: 输入值
-            
-        Returns:
-            提取的数字，失败时返回None
-        """
-        if value is None:
-            return None
-            
-        try:
-            # 如果已经是数字类型
-            if isinstance(value, (int, float)):
-                return float(value)
-                
-            # 字符串处理
-            str_value = str(value).strip()
-            
-            # 提取数字部分
-            numbers = re.findall(r'-?\d+\.?\d*', str_value)
-            
-            if numbers:
-                return float(numbers[0])
-            
-            return None
-            
-        except (ValueError, TypeError) as e:
-            self.logger.warning(f"数字提取失败: {value}, 错误: {e}")
-            return None
-    
     def check_condition(self, user_value: Any, operator: str, condition_value: Any) -> bool:
         """
-        检查单个条件是否匹配，增强类型安全性
+        检查单个条件是否满足，增强类型安全性
         
         Args:
             user_value: 用户数据值
@@ -64,7 +31,7 @@ class PolicyMatchEngine:
             condition_value: 条件值
             
         Returns:
-            是否匹配，类型不匹配时返回False
+            是否满足条件，类型不匹配时返回False
         """
         # 如果用户值为None或空，直接返回False
         if user_value is None or user_value == "":
@@ -75,9 +42,9 @@ class PolicyMatchEngine:
             # between 操作符处理
             if operator == 'between':
                 if isinstance(condition_value, list) and len(condition_value) == 2:
-                    user_val = self.extract_numeric_value(user_value)
-                    min_val = self.extract_numeric_value(condition_value[0])
-                    max_val = self.extract_numeric_value(condition_value[1])
+                    user_val = self.data_processor.extract_numeric_value_simple(user_value)
+                    min_val = self.data_processor.extract_numeric_value_simple(condition_value[0])
+                    max_val = self.data_processor.extract_numeric_value_simple(condition_value[1])
                     
                     if user_val is None or min_val is None or max_val is None:
                         self.logger.warning(f"between操作符类型转换失败: user={user_value}, range={condition_value}")
@@ -90,8 +57,8 @@ class PolicyMatchEngine:
                     
             # 数字比较操作符
             elif operator in ['>', '<', '>=', '<=']:
-                user_val = self.extract_numeric_value(user_value)
-                condition_val = self.extract_numeric_value(condition_value)
+                user_val = self.data_processor.extract_numeric_value_simple(user_value)
+                condition_val = self.data_processor.extract_numeric_value_simple(condition_value)
                 
                 if user_val is None or condition_val is None:
                     self.logger.warning(f"数字比较类型转换失败: user={user_value}, condition={condition_value}")
@@ -236,113 +203,128 @@ class PolicyMatchEngine:
             self.logger.error(f"评估规则节点异常: {rule_node}, 错误: {e}")
             return False
     
-    def match_policy(self, user_data: Dict, policy_data: Dict) -> int:
+    def audit_policy(self, user_data: Dict, policy_data: Dict) -> int:
         """
-        单个用户与单个政策匹配
+        单个用户与单个政策预审
         
         Args:
             user_data: 用户数据字典
             policy_data: 政策数据字典
             
         Returns:
-            匹配结果: 1-匹配, 0-不匹配
+            预审结果: 1-通过, 0-不通过
         """
         try:
-            user_id = user_data.get("用户ID", "Unknown")
-            policy_id = policy_data.get("政策编号", "Unknown")
+            # 使用数据处理器处理输入数据
+            processed_user_data = self.data_processor.process_user_data(user_data)
+            processed_policy_data = self.data_processor.process_policy_data(policy_data)
             
-            self.logger.info(f"开始匹配: 用户={user_id}, 政策={policy_id}")
+            # 验证输入数据
+            if not self.data_processor.validate_match_input(processed_user_data, processed_policy_data):
+                self.logger.warning("输入数据验证失败")
+                return 0
+            
+            user_id = processed_user_data.get("用户ID", "Unknown")
+            policy_id = processed_policy_data.get("政策编号", "Unknown")
+            
+            self.logger.info(f"开始预审: 用户={user_id}, 政策={policy_id}")
             
             # 获取条件规则
-            condition_root = policy_data.get("条件", {})
+            condition_root = processed_policy_data.get("条件", {})
             
             if not condition_root:
-                self.logger.warning(f"政策 {policy_id} 没有条件规则，默认匹配成功")
+                self.logger.warning(f"政策 {policy_id} 没有条件规则，默认审核通过")
                 return 1
             
             # 评估规则
-            result = self.evaluate_rule_node(condition_root, user_data)
-            match_result = 1 if result else 0
+            result = self.evaluate_rule_node(condition_root, processed_user_data)
+            audit_result = 1 if result else 0
             
-            self.logger.info(f"匹配结果: 用户={user_id}, 政策={policy_id}, 结果={match_result}")
+            self.logger.info(f"预审结果: 用户={user_id}, 政策={policy_id}, 结果={audit_result}")
             
-            return match_result
+            return audit_result
             
         except Exception as e:
-            self.logger.error(f"匹配异常: 用户={user_data.get('用户ID', 'Unknown')}, 政策={policy_data.get('政策编号', 'Unknown')}, 错误: {e}")
-            return 0  # 出错时默认不匹配
+            self.logger.error(f"预审异常: 用户={user_data.get('用户ID', 'Unknown')}, 政策={policy_data.get('政策编号', 'Unknown')}, 错误: {e}")
+            return 0  # 出错时默认不通过
     
-    def multi_user_match_policy(self, users_data: List[Dict], policy_data: Dict) -> List[int]:
+    def multi_user_audit_policy(self, users_data: List[Dict], policy_data: Dict) -> List[int]:
         """
-        多个用户与单个政策匹配
+        多个用户与单个政策预审
         
         Args:
             users_data: 用户数据列表
             policy_data: 政策数据字典
             
         Returns:
-            匹配结果列表 (每个元素为0或1)
+            预审结果列表 (每个元素为0或1)
         """
         results = []
-        policy_id = policy_data.get("政策编号", "Unknown")
+        # 处理政策数据
+        processed_policy_data = self.data_processor.process_policy_data(policy_data)
+        policy_id = processed_policy_data.get("政策编号", "Unknown")
         
-        self.logger.info(f"开始多用户匹配: 用户数量={len(users_data)}, 政策={policy_id}")
+        self.logger.info(f"开始多用户预审: 用户数量={len(users_data)}, 政策={policy_id}")
         
         for i, user_data in enumerate(users_data):
             try:
-                result = self.match_policy(user_data, policy_data)
+                result = self.audit_policy(user_data, policy_data)
                 results.append(result)
                 
             except Exception as e:
                 user_id = user_data.get("用户ID", f"User_{i}")
-                self.logger.error(f"匹配用户 {user_id} 失败: {e}")
-                results.append(0)  # 出错时默认不匹配
+                self.logger.error(f"预审用户 {user_id} 失败: {e}")
+                results.append(0)  # 出错时默认不通过
         
-        matched_count = sum(results)
-        self.logger.info(f"多用户匹配完成: 政策={policy_id}, 匹配成功={matched_count}/{len(users_data)}")
+        passed_count = sum(results)
+        self.logger.info(f"多用户预审完成: 政策={policy_id}, 审核通过={passed_count}/{len(users_data)}")
         
         return results
     
-    def get_match_summary(self, users_data: List[Dict], policy_data: Dict, 
-                         match_results: List[int]) -> Dict[str, Any]:
+    def get_audit_summary(self, users_data: List[Dict], policy_data: Dict, 
+                         audit_results: List[int]) -> Dict[str, Any]:
         """
-        生成匹配统计摘要
+        生成预审统计摘要
         
         Args:
             users_data: 用户数据列表
             policy_data: 政策数据字典
-            match_results: 匹配结果列表
+            audit_results: 预审结果列表
             
         Returns:
             统计摘要字典
         """
         try:
-            matched_count = sum(match_results)
+            # 处理政策数据
+            processed_policy_data = self.data_processor.process_policy_data(policy_data)
+            
+            passed_count = sum(audit_results)
             total_users = len(users_data)
-            match_rate = round(matched_count / total_users, 3) if total_users > 0 else 0.0
+            pass_rate = round(passed_count / total_users, 3) if total_users > 0 else 0.0
             
             summary = {
-                "政策编号": policy_data.get("政策编号", "Unknown"),
-                "政策名称": policy_data.get("政策名称", ""),
+                "政策编号": processed_policy_data.get("政策编号", "Unknown"),
+                "政策名称": processed_policy_data.get("政策名称", ""),
                 "总用户数": total_users,
-                "匹配成功数": matched_count,
-                "匹配率": match_rate,
-                "用户匹配详情": []
+                "审核通过数": passed_count,
+                "通过率": pass_rate,
+                "用户审核详情": []
             }
             
-            # 统计每个用户的匹配情况
+            # 统计每个用户的预审情况
             for i, user_data in enumerate(users_data):
-                user_id = user_data.get("用户ID", f"User_{i}")
-                user_result = match_results[i] if i < len(match_results) else 0
+                processed_user_data = self.data_processor.process_user_data(user_data)
+                user_id = processed_user_data.get("用户ID", f"User_{i}")
+                user_result = audit_results[i] if i < len(audit_results) else 0
                 
-                summary["用户匹配详情"].append({
+                summary["用户审核详情"].append({
                     "用户ID": user_id,
-                    "匹配结果": user_result,
-                    "匹配状态": "匹配" if user_result == 1 else "不匹配"
+                    "审核结果": user_result,
+                    "审核状态": "通过" if user_result == 1 else "不通过"
                 })
             
             return summary
             
         except Exception as e:
-            self.logger.error(f"生成匹配摘要异常: {e}")
+            self.logger.error(f"生成预审摘要异常: {e}")
             return {"错误": str(e)}

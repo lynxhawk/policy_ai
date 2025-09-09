@@ -66,6 +66,77 @@ class DataProcessor:
             self.logger.warning(f"转换字典失败: {e}")
             return default_value
     
+    def safe_type_conversion(self, value: Any, target_type: str = "auto") -> Any:
+        """
+        安全的类型转换，失败时返回None
+        
+        Args:
+            value: 需要转换的值
+            target_type: 目标类型 ("int", "float", "str", "auto")
+            
+        Returns:
+            转换后的值，失败时返回None
+        """
+        if value is None:
+            return None
+            
+        try:
+            if target_type == "int":
+                return int(float(str(value)))
+            elif target_type == "float":
+                return float(str(value))
+            elif target_type == "str":
+                return str(value)
+            else:  # auto
+                # 尝试自动推断类型
+                str_value = str(value).strip()
+                
+                # 尝试转换为数字
+                if str_value.replace('.', '').replace('-', '').isdigit():
+                    if '.' in str_value:
+                        return float(str_value)
+                    else:
+                        return int(str_value)
+                
+                return str_value
+                
+        except (ValueError, TypeError, OverflowError) as e:
+            self.logger.warning(f"类型转换失败: {value} -> {target_type}, 错误: {e}")
+            return None
+    
+    def extract_numeric_value_simple(self, value: Any) -> Optional[float]:
+        """
+        简单的数字提取方法，支持带单位的字符串如"2年"、"25岁"等
+        
+        Args:
+            value: 输入值
+            
+        Returns:
+            提取的数字，失败时返回None
+        """
+        if value is None:
+            return None
+            
+        try:
+            # 如果已经是数字类型
+            if isinstance(value, (int, float)):
+                return float(value)
+                
+            # 字符串处理
+            str_value = str(value).strip()
+            
+            # 提取数字部分
+            numbers = re.findall(r'-?\d+\.?\d*', str_value)
+            
+            if numbers:
+                return float(numbers[0])
+            
+            return None
+            
+        except (ValueError, TypeError) as e:
+            self.logger.warning(f"数字提取失败: {value}, 错误: {e}")
+            return None
+    
     def normalize_employment_type(self, value: Any) -> str:
         """
         规范化就业类型
@@ -124,7 +195,7 @@ class DataProcessor:
     
     def extract_numeric_value(self, value: Any, min_val: int = None, max_val: int = None) -> Any:
         """
-        从值中提取数字
+        从值中提取数字（带范围验证）
         
         Args:
             value: 原始值
