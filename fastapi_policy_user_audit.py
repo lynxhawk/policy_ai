@@ -87,7 +87,7 @@ async def audit_single_policy(request: Request):
 
 @app.post("/batch-audit",
           summary="批量用户预审",
-          description="多个用户与单个政策进行预审，只返回审核通过的用户ID")
+          description="多个用户与单个政策进行预审，只返预审通过的用户ID")
 async def batch_audit(request: Request):
     """
     批量用户预审接口 - 多个用户与单个政策预审，只返回通过的用户ID
@@ -172,9 +172,9 @@ async def audit_summary(request: Request):
                 "status_code": 200,
                 "summary": {
                     "总用户数": 0,
-                    "审核通过数": 0,
+                     "预审通过数": 0,
                     "通过率": 0.0,
-                    "用户审核详情": []
+                    "用户预审详情": []
                 },
                 "message": "预审统计完成"
             }
@@ -198,9 +198,9 @@ async def audit_summary(request: Request):
             "status_code": 200,
             "summary": {
                 "总用户数": 0,
-                "审核通过数": 0,
+                "预审通过数": 0,
                 "通过率": 0.0,
-                "用户审核详情": []
+                "用户预审详情": []
             },
             "message": "预审统计完成"
         }
