@@ -1,6 +1,7 @@
 """
 数据处理工具类
 提供数据转换、规范化、验证等通用功能
+增加了条件检查和规则评估功能
 """
 
 import logging
@@ -466,3 +467,187 @@ class DataProcessor:
                 "results": [],
                 "error": str(e)
             }
+
+    # ============= 新增的条件检查和规则评估功能 =============
+    
+    def check_condition(self, user_value: Any, operator: str, condition_value: Any) -> bool:
+        """
+        检查单个条件是否匹配，增强类型安全性
+        
+        Args:
+            user_value: 用户数据值
+            operator: 操作符
+            condition_value: 条件值
+            
+        Returns:
+            是否匹配，类型不匹配时返回False
+        """
+        # 如果用户值为None或空，直接返回False
+        if user_value is None or user_value == "":
+            self.logger.debug(f"用户值为空: {user_value}")
+            return False
+            
+        try:
+            # between 操作符处理
+            if operator == 'between':
+                if isinstance(condition_value, list) and len(condition_value) == 2:
+                    user_val = self.extract_numeric_value_simple(user_value)
+                    min_val = self.extract_numeric_value_simple(condition_value[0])
+                    max_val = self.extract_numeric_value_simple(condition_value[1])
+                    
+                    if user_val is None or min_val is None or max_val is None:
+                        self.logger.warning(f"between操作符类型转换失败: user={user_value}, range={condition_value}")
+                        return False
+                        
+                    return min_val <= user_val <= max_val
+                else:
+                    self.logger.warning(f"between操作符条件值格式错误: {condition_value}")
+                    return False
+                    
+            # 数字比较操作符
+            elif operator in ['>', '<', '>=', '<=']:
+                user_val = self.extract_numeric_value_simple(user_value)
+                condition_val = self.extract_numeric_value_simple(condition_value)
+                
+                if user_val is None or condition_val is None:
+                    self.logger.warning(f"数字比较类型转换失败: user={user_value}, condition={condition_value}")
+                    return False
+                
+                if operator == '>':
+                    return user_val > condition_val
+                elif operator == '<':
+                    return user_val < condition_val
+                elif operator == '>=':
+                    return user_val >= condition_val
+                elif operator == '<=':
+                    return user_val <= condition_val
+                    
+            # 字符串比较
+            elif operator == '=':
+                # 安全的字符串转换
+                user_str = self.safe_type_conversion(user_value, "str")
+                condition_str = self.safe_type_conversion(condition_value, "str")
+                
+                if user_str is None or condition_str is None:
+                    self.logger.warning(f"字符串比较转换失败: user={user_value}, condition={condition_value}")
+                    return False
+                    
+                return user_str == condition_str
+                
+            elif operator == '!=':
+                # 安全的字符串转换
+                user_str = self.safe_type_conversion(user_value, "str")
+                condition_str = self.safe_type_conversion(condition_value, "str")
+                
+                if user_str is None or condition_str is None:
+                    self.logger.warning(f"字符串比较转换失败: user={user_value}, condition={condition_value}")
+                    return False
+                    
+                return user_str != condition_str
+                
+            # in 操作符（包含）
+            elif operator == 'in':
+                user_str = self.safe_type_conversion(user_value, "str")
+                condition_str = self.safe_type_conversion(condition_value, "str")
+                
+                if user_str is None or condition_str is None:
+                    return False
+                    
+                return user_str in condition_str
+                
+            # contains 操作符（包含）
+            elif operator == 'contains':
+                user_str = self.safe_type_conversion(user_value, "str")
+                condition_str = self.safe_type_conversion(condition_value, "str")
+                
+                if user_str is None or condition_str is None:
+                    return False
+                    
+                return condition_str in user_str
+            
+            else:
+                self.logger.warning(f"不支持的操作符: {operator}")
+                return False
+                
+        except Exception as e:
+            self.logger.error(f"条件检查异常: user={user_value}, operator={operator}, condition={condition_value}, 错误: {e}")
+            return False
+    
+    def evaluate_rule_node(self, rule_node: Dict, user_data: Dict) -> bool:
+        """
+        递归评估规则节点，支持复杂的逻辑运算
+        
+        Args:
+            rule_node: 规则节点
+            user_data: 用户数据
+            
+        Returns:
+            规则评估结果 (True/False)
+        """
+        try:
+            self.logger.debug(f"评估规则节点: {rule_node}")
+            
+            # 如果是叶子节点（包含字段、操作符、值），直接评估条件
+            if all(key in rule_node for key in ["字段", "操作符", "值"]):
+                field = rule_node["字段"]
+                operator = rule_node["操作符"]
+                value = rule_node["值"]
+                
+                if field not in user_data:
+                    self.logger.debug(f"用户数据中缺少字段: {field}")
+                    return False
+                    
+                user_value = user_data[field]
+                result = self.check_condition(user_value, operator, value)
+                
+                self.logger.info(f"条件评估: {field}({user_value}) {operator} {value} = {result}")
+                return result
+            
+            # 如果是容器节点，处理逻辑运算
+            elif "规则" in rule_node:
+                rules = rule_node["规则"]
+                logic_operator = rule_node.get("逻辑", "and").lower()  # 默认为and，并转换为小写
+                
+                self.logger.info(f"逻辑运算节点: {logic_operator}, 规则数量: {len(rules) if isinstance(rules, list) else 0}")
+                
+                if not isinstance(rules, list) or len(rules) == 0:
+                    self.logger.warning(f"规则列表为空或格式错误: {rules}")
+                    return False
+                
+                # 递归评估所有子规则
+                results = []
+                for i, sub_rule in enumerate(rules):
+                    sub_result = self.evaluate_rule_node(sub_rule, user_data)
+                    results.append(sub_result)
+                    self.logger.debug(f"子规则{i+1}结果: {sub_result}")
+                    
+                    # 短路评估优化
+                    if logic_operator == "and" and not sub_result:
+                        self.logger.debug(f"AND逻辑短路: 发现False，直接返回False")
+                        return False
+                    elif logic_operator == "or" and sub_result:
+                        self.logger.debug(f"OR逻辑短路: 发现True，直接返回True")
+                        return True
+                
+                # 根据逻辑操作符计算最终结果
+                if logic_operator == "and":
+                    final_result = all(results)
+                elif logic_operator == "or":
+                    final_result = any(results)
+                elif logic_operator == "not":
+                    # NOT逻辑：对第一个规则取反
+                    final_result = not results[0] if results else False
+                else:
+                    self.logger.warning(f"不支持的逻辑操作符: {logic_operator}")
+                    return False
+                
+                self.logger.info(f"逻辑运算 {logic_operator.upper()}: {results} = {final_result}")
+                return final_result
+            
+            else:
+                self.logger.warning(f"规则节点格式错误，既不是条件节点也不是逻辑节点: {rule_node}")
+                return False
+                
+        except Exception as e:
+            self.logger.error(f"评估规则节点异常: {rule_node}, 错误: {e}")
+            return False
