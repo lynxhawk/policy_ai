@@ -16,8 +16,8 @@ def generate_talent_data():
     """生成人才流动数据"""
     
     # 设置随机种子确保数据可重现
-    np.random.seed(42)
-    random.seed(42)
+    np.random.seed(12) #42 12
+    random.seed(12) #42 12
     
     # 定义基本参数
     years = [2023, 2024, 2025]
@@ -28,42 +28,42 @@ def generate_talent_data():
     industry_profiles = {
         '互联网': {
             'base': 15000,
-            'growth_rate': 0.08,  # 年增长率8%
+            'growth_rate': -0.1,  # 年增长率8%
             'seasonality': [0.9, 0.85, 1.1, 1.15, 1.2, 1.25, 1.05, 0.95, 1.0, 1.1, 0.9, 0.8],  # 季节性因子
             'volatility': 0.15,
-            'trend_type': 'exponential'  # 指数增长
+            'trend_type': 'stable'  # 指数增长
         },
         '电子': {
             'base': 12000,
-            'growth_rate': 0.06,
+            'growth_rate': 0.09,
             'seasonality': [0.95, 0.9, 1.05, 1.1, 1.15, 1.2, 1.1, 1.05, 1.0, 1.05, 0.95, 0.85],
             'volatility': 0.12,
             'trend_type': 'linear'  # 线性增长
         },
         '财务': {
             'base': 8000,
-            'growth_rate': 0.03,
+            'growth_rate': -0.05,
             'seasonality': [1.0, 1.0, 1.1, 1.05, 1.0, 1.0, 0.95, 0.9, 1.0, 1.05, 1.1, 1.15],  # 年末较高
             'volatility': 0.08,
-            'trend_type': 'stable'  # 稳定增长
+            'trend_type': 'exponential'  # 稳定增长
         },
         '金融': {
             'base': 18000,
-            'growth_rate': 0.04,
+            'growth_rate': -0.09,
             'seasonality': [1.0, 0.95, 1.05, 1.0, 1.0, 1.05, 0.95, 0.9, 1.0, 1.05, 1.1, 1.2],
             'volatility': 0.10,
             'trend_type': 'linear'
         },
         '贸易': {
             'base': 10000,
-            'growth_rate': 0.02,
+            'growth_rate': -0.04,
             'seasonality': [0.8, 0.75, 1.0, 1.05, 1.1, 1.15, 1.2, 1.25, 1.1, 1.0, 0.9, 0.85],  # 春节后低，下半年高
             'volatility': 0.20,
             'trend_type': 'cyclical'  # 周期性
         },
         '人力资源': {
             'base': 5000,
-            'growth_rate': 0.05,
+            'growth_rate': -0.05,
             'seasonality': [0.9, 0.85, 1.2, 1.15, 1.1, 1.25, 1.05, 0.95, 1.0, 1.05, 0.95, 0.9],  # 招聘旺季较高
             'volatility': 0.18,
             'trend_type': 'seasonal'  # 季节性明显
