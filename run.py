@@ -1,16 +1,17 @@
 """
-政策系统FastAPI接口服务 - 统一版本
-提供政策匹配（用户和企业）和政策预审的RESTful API接口
-即使输入数据不合法也不会返回错误，而是将非法条件当作不通过处理
+统一政策和人才流动分析FastAPI接口服务
+集成政策匹配（用户和企业）、政策预审和人才流动分析功能
 """
 
 from fastapi import FastAPI, Request
 from typing import Dict, List, Any, Optional, Union
+import pandas as pd
 import uvicorn
+from datetime import datetime
 import logging
 import traceback
 
-# 导入核心模块和数据处理工具
+# 导入政策系统核心模块
 from policy_user_match import PolicyMatchEngine as UserPolicyMatchEngine
 from policy_enterprise_match import PolicyMatchEngine as EnterprisePolicyMatchEngine
 from policy_user_audit import PolicyPreAuditEngine
@@ -18,24 +19,55 @@ from policy_enterprise_audit import PolicyAuditEngine
 from data_processor_user import DataProcessor as UserDataProcessor
 from data_processor_enterprise import DataProcessor as EnterpriseDataProcessor
 
+# 导入人才流动分析核心模块
+from talent_analyzer import TalentDataAnalyzer
+
 # 配置日志
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # 初始化FastAPI应用
 app = FastAPI(
-    title="政策系统统一API",
-    description="集成用户政策匹配、企业政策匹配和政策预审功能的统一系统，基于数据和政策条件进行严格规则处理，自动处理非法输入",
-    version="4.0.0"
+    title="政策与人才流动统一分析API",
+    description="集成用户政策匹配、企业政策匹配、政策预审和人才流动分析功能的统一系统",
+    version="5.0.0"
 )
 
-# 初始化核心组件
+# 初始化政策系统组件
 user_match_engine = UserPolicyMatchEngine()
 enterprise_match_engine = EnterprisePolicyMatchEngine()
 user_audit_engine = PolicyPreAuditEngine()
 enterprise_audit_engine = PolicyAuditEngine()
 user_data_processor = UserDataProcessor()
 enterprise_data_processor = EnterpriseDataProcessor()
+
+# 初始化人才流动分析组件
+talent_analyzer = TalentDataAnalyzer()
+
+
+# ==================== 人才流动分析通用函数 ====================
+
+def create_success_response(message: str, data, summary=None):
+    """创建成功响应"""
+    response = {
+        "status_code": 200,
+        "data": data,
+        "message": message,
+        "timestamp": datetime.now().isoformat()
+    }
+    if summary:
+        response["summary"] = summary
+    return response
+
+
+def create_error_response(message: str):
+    """创建错误响应"""
+    return {
+        "status_code": 200,
+        "data": None,
+        "message": message,
+        "timestamp": datetime.now().isoformat()
+    }
 
 
 # ==================== 系统管理接口 ====================
@@ -44,13 +76,12 @@ enterprise_data_processor = EnterpriseDataProcessor()
 async def health_check():
     return {
         "status": "healthy",
-        "service": "政策系统统一API",
-        "modules": ["用户政策匹配", "企业政策匹配", "用户政策预审", "企业政策预审"],
-        "match_mode": "strict",
-        "audit_mode": "strict",
-        "result_type": "binary (0 or 1)",
-        "tolerance": "maximum",
-        "error_handling": "graceful"
+        "service": "政策与人才流动统一分析API",
+        "modules": [
+            "用户政策匹配", "企业政策匹配", "用户政策预审", "企业政策预审",
+            "求职者意向分析", "企业招聘分析", "外地户籍分析"
+        ],
+        "version": "5.0.0"
     }
 
 
@@ -60,22 +91,15 @@ async def health_check():
           summary="单个用户政策匹配",
           description="针对单个用户和单个政策进行匹配，自动处理非法输入")
 async def user_recommend_single_policy(request: Request):
-    """
-    单个用户政策匹配接口
-    """
+    """单个用户政策匹配接口"""
     try:
-        # 解析请求
         request_data = await user_data_processor.parse_request_safely(request)
-
-        # 提取用户和政策数据
         user_data = request_data.get('user', {})
         policy_data = request_data.get('policy', {})
 
-        # 处理数据
         user_dict = user_data_processor.process_user_data(user_data)
         policy_dict = user_data_processor.process_policy_data(policy_data)
 
-        # 验证并匹配
         if user_data_processor.validate_match_input(user_dict, policy_dict):
             result = user_match_engine.match_policy(user_dict, policy_dict)
             result = 1 if result else 0
@@ -102,47 +126,35 @@ async def user_recommend_single_policy(request: Request):
           summary="批量用户匹配",
           description="多个用户与单个政策进行匹配，只返回匹配成功的用户ID")
 async def user_batch_recommend(request: Request):
-    """
-    批量用户匹配接口 - 多个用户与单个政策匹配，只返回匹配的用户ID
-    """
+    """批量用户匹配接口"""
     try:
-        # 解析请求
         request_data = await user_data_processor.parse_request_safely(request)
-
-        # 提取用户列表和政策数据
         users_data = request_data.get('users', [])
         policy_data = request_data.get('policy', {})
 
-        # 确保users是列表
         if not isinstance(users_data, list):
             users_data = [users_data] if users_data else []
 
-        # 处理政策数据（只需要处理一次）
         policy_dict = user_data_processor.process_policy_data(policy_data)
-
         matched_user_ids = []
+
         for user_data in users_data:
             try:
-                # 处理用户数据
                 user_dict = user_data_processor.process_user_data(user_data)
-
-                # 验证并匹配
                 if user_data_processor.validate_match_input(user_dict, policy_dict):
                     result = user_match_engine.match_policy(user_dict, policy_dict)
-                    if result == 1:  # 匹配成功
+                    if result == 1:
                         user_id = user_dict.get("用户ID")
                         if user_id:
                             matched_user_ids.append(str(user_id))
                         else:
-                            # 如果没有用户ID，使用原始数据中的ID
                             raw_user_dict = user_data_processor.safe_convert_to_dict(user_data)
                             raw_user_id = raw_user_dict.get("用户ID")
                             if raw_user_id:
                                 matched_user_ids.append(str(raw_user_id))
-
             except Exception as e:
                 logger.error(f"处理用户时出错: {e}")
-                continue  # 跳过出错的用户，继续处理下一个
+                continue
 
         return {
             "status_code": 200,
@@ -166,22 +178,15 @@ async def user_batch_recommend(request: Request):
           summary="单个企业政策匹配",
           description="针对单个企业和单个政策进行匹配，自动处理非法输入")
 async def enterprise_recommend_single_policy(request: Request):
-    """
-    单个企业政策匹配接口
-    """
+    """单个企业政策匹配接口"""
     try:
-        # 解析请求
         request_data = await enterprise_data_processor.parse_request_safely(request)
-
-        # 提取企业和政策数据
         enterprise_data = request_data.get('enterprise', {})
         policy_data = request_data.get('policy', {})
 
-        # 处理数据
         enterprise_dict = enterprise_data_processor.process_enterprise_data(enterprise_data)
         policy_dict = enterprise_data_processor.process_policy_data(policy_data)
 
-        # 验证并匹配
         if enterprise_data_processor.validate_match_input(enterprise_dict, policy_dict):
             result = enterprise_match_engine.match_policy(enterprise_dict, policy_dict)
             result = 1 if result else 0
@@ -208,47 +213,35 @@ async def enterprise_recommend_single_policy(request: Request):
           summary="批量企业匹配",
           description="多个企业与单个政策进行匹配，只返回匹配成功的企业ID")
 async def enterprise_batch_recommend(request: Request):
-    """
-    批量企业匹配接口 - 多个企业与单个政策匹配，只返回匹配的企业ID
-    """
+    """批量企业匹配接口"""
     try:
-        # 解析请求
         request_data = await enterprise_data_processor.parse_request_safely(request)
-
-        # 提取企业列表和政策数据
         enterprises_data = request_data.get('enterprises', [])
         policy_data = request_data.get('policy', {})
 
-        # 确保enterprises是列表
         if not isinstance(enterprises_data, list):
             enterprises_data = [enterprises_data] if enterprises_data else []
 
-        # 处理政策数据（只需要处理一次）
         policy_dict = enterprise_data_processor.process_policy_data(policy_data)
-
         matched_enterprise_ids = []
+
         for enterprise_data in enterprises_data:
             try:
-                # 处理企业数据
                 enterprise_dict = enterprise_data_processor.process_enterprise_data(enterprise_data)
-
-                # 验证并匹配
                 if enterprise_data_processor.validate_match_input(enterprise_dict, policy_dict):
                     result = enterprise_match_engine.match_policy(enterprise_dict, policy_dict)
-                    if result == 1:  # 匹配成功
+                    if result == 1:
                         enterprise_id = enterprise_dict.get("企业ID")
                         if enterprise_id:
                             matched_enterprise_ids.append(str(enterprise_id))
                         else:
-                            # 如果没有企业ID，使用原始数据中的ID
                             raw_enterprise_dict = enterprise_data_processor.safe_convert_to_dict(enterprise_data)
                             raw_enterprise_id = raw_enterprise_dict.get("企业ID")
                             if raw_enterprise_id:
                                 matched_enterprise_ids.append(str(raw_enterprise_id))
-
             except Exception as e:
                 logger.error(f"处理企业时出错: {e}")
-                continue  # 跳过出错的企业，继续处理下一个
+                continue
 
         return {
             "status_code": 200,
@@ -272,22 +265,15 @@ async def enterprise_batch_recommend(request: Request):
           summary="单个用户政策预审",
           description="针对单个用户和单个政策进行预审，自动处理非法输入")
 async def user_audit_single_policy(request: Request):
-    """
-    单个用户政策预审接口
-    """
+    """单个用户政策预审接口"""
     try:
-        # 解析请求
         request_data = await user_data_processor.parse_request_safely(request)
-
-        # 提取用户和政策数据
         user_data = request_data.get('user', {})
         policy_data = request_data.get('policy', {})
 
-        # 处理数据
         user_dict = user_data_processor.process_user_data(user_data)
         policy_dict = user_data_processor.process_policy_data(policy_data)
 
-        # 验证并预审
         if user_data_processor.validate_match_input(user_dict, policy_dict):
             result = user_audit_engine.audit_policy(user_dict, policy_dict)
             result = 1 if result else 0
@@ -314,47 +300,35 @@ async def user_audit_single_policy(request: Request):
           summary="批量用户预审",
           description="多个用户与单个政策进行预审，只返回预审通过的用户ID")
 async def user_batch_audit(request: Request):
-    """
-    批量用户预审接口 - 多个用户与单个政策预审，只返回通过的用户ID
-    """
+    """批量用户预审接口"""
     try:
-        # 解析请求
         request_data = await user_data_processor.parse_request_safely(request)
-
-        # 提取用户列表和政策数据
         users_data = request_data.get('users', [])
         policy_data = request_data.get('policy', {})
 
-        # 确保users是列表
         if not isinstance(users_data, list):
             users_data = [users_data] if users_data else []
 
-        # 处理政策数据（只需要处理一次）
         policy_dict = user_data_processor.process_policy_data(policy_data)
-
         passed_user_ids = []
+
         for user_data in users_data:
             try:
-                # 处理用户数据
                 user_dict = user_data_processor.process_user_data(user_data)
-
-                # 验证并预审
                 if user_data_processor.validate_match_input(user_dict, policy_dict):
                     result = user_audit_engine.audit_policy(user_dict, policy_dict)
-                    if result == 1:  # 预审通过
+                    if result == 1:
                         user_id = user_dict.get("用户ID")
                         if user_id:
                             passed_user_ids.append(str(user_id))
                         else:
-                            # 如果没有用户ID，使用原始数据中的ID
                             raw_user_dict = user_data_processor.safe_convert_to_dict(user_data)
                             raw_user_id = raw_user_dict.get("用户ID")
                             if raw_user_id:
                                 passed_user_ids.append(str(raw_user_id))
-
             except Exception as e:
                 logger.error(f"处理用户时出错: {e}")
-                continue  # 跳过出错的用户，继续处理下一个
+                continue
 
         return {
             "status_code": 200,
@@ -378,22 +352,15 @@ async def user_batch_audit(request: Request):
           summary="单个企业政策预审",
           description="针对单个企业和单个政策进行预审，自动处理非法输入")
 async def enterprise_audit_single_policy(request: Request):
-    """
-    单个企业政策预审接口
-    """
+    """单个企业政策预审接口"""
     try:
-        # 解析请求
         request_data = await enterprise_data_processor.parse_request_safely(request)
-
-        # 提取企业和政策数据
         enterprise_data = request_data.get('enterprise', {})
         policy_data = request_data.get('policy', {})
 
-        # 处理数据
         enterprise_dict = enterprise_data_processor.process_enterprise_data(enterprise_data)
         policy_dict = enterprise_data_processor.process_policy_data(policy_data)
 
-        # 验证并预审
         if enterprise_data_processor.validate_audit_input(enterprise_dict, policy_dict):
             result = enterprise_audit_engine.audit_policy(enterprise_dict, policy_dict)
             result = 1 if result else 0
@@ -420,48 +387,35 @@ async def enterprise_audit_single_policy(request: Request):
           summary="批量企业预审",
           description="多个企业与单个政策进行预审，只返回预审通过的企业ID")
 async def enterprise_batch_audit(request: Request):
-    """
-    批量企业预审接口 - 多个企业与单个政策预审，只返回通过预审的企业ID
-    """
+    """批量企业预审接口"""
     try:
-        # 解析请求
         request_data = await enterprise_data_processor.parse_request_safely(request)
-
-        # 提取企业列表和政策数据
         enterprises_data = request_data.get('enterprises', [])
         policy_data = request_data.get('policy', {})
 
-        # 确保enterprises是列表
         if not isinstance(enterprises_data, list):
             enterprises_data = [enterprises_data] if enterprises_data else []
 
-        # 处理政策数据（只需要处理一次）
         policy_dict = enterprise_data_processor.process_policy_data(policy_data)
-
         passed_enterprise_ids = []
+
         for enterprise_data in enterprises_data:
             try:
-                # 处理企业数据
                 enterprise_dict = enterprise_data_processor.process_enterprise_data(enterprise_data)
-
-                # 验证并预审
                 if enterprise_data_processor.validate_audit_input(enterprise_dict, policy_dict):
                     result = enterprise_audit_engine.audit_policy(enterprise_dict, policy_dict)
-                    if result == 1:  # 预审通过
+                    if result == 1:
                         enterprise_id = enterprise_dict.get("企业ID")
                         if enterprise_id:
                             passed_enterprise_ids.append(str(enterprise_id))
                         else:
-                            # 如果没有企业ID，使用原始数据中的ID
-                            raw_enterprise_dict = enterprise_data_processor.safe_convert_to_dict(
-                                enterprise_data)
+                            raw_enterprise_dict = enterprise_data_processor.safe_convert_to_dict(enterprise_data)
                             raw_enterprise_id = raw_enterprise_dict.get("企业ID")
                             if raw_enterprise_id:
                                 passed_enterprise_ids.append(str(raw_enterprise_id))
-
             except Exception as e:
                 logger.error(f"处理企业时出错: {e}")
-                continue  # 跳过出错的企业，继续处理下一个
+                continue
 
         return {
             "status_code": 200,
@@ -477,6 +431,122 @@ async def enterprise_batch_audit(request: Request):
             "passed_enterprise_ids": [],
             "message": "批量预审完成"
         }
+
+
+# ==================== 人才流动分析接口 ====================
+
+@app.post("/talent/analyze-applicant",
+          summary="求职者意向行业变化趋势分析",
+          description="分析求职者求职意向的行业变化趋势")
+async def analyze_applicant_position(request: Request):
+    """求职者意向行业变化趋势分析"""
+    try:
+        request_data = await request.json()
+        
+        if not isinstance(request_data, dict) or 'data' not in request_data:
+            return create_error_response("请求格式错误：需要包含data字段的字典")
+        
+        data_type = request_data.get('data_type', '求职者求职意向')
+        validated_data = talent_analyzer.validate_industry_data(request_data['data'])
+        
+        df = pd.DataFrame(validated_data)
+        df = talent_analyzer.preprocess_data(df)
+        results = talent_analyzer.analyze_industry_data(df, data_type)
+        
+        if not results:
+            return create_error_response("未能生成有效的分析结果")
+        
+        api_results = [result.to_dict() for result in results]
+        summary = talent_analyzer.generate_summary(results)
+        
+        return create_success_response(
+            message=f"求职者意向行业趋势分析完成，共分析{len(results)}个行业",
+            data=api_results,
+            summary=summary
+        )
+        
+    except Exception as e:
+        logger.error(f"求职者分析异常: {e}")
+        logger.error(traceback.format_exc())
+        return create_error_response("分析过程出错")
+
+
+@app.post("/talent/analyze-corporate",
+          summary="企业招聘岗位行业变化趋势分析",
+          description="分析企业招聘岗位的行业变化趋势")
+async def analyze_corporate_position(request: Request):
+    """企业招聘岗位行业变化趋势分析"""
+    try:
+        request_data = await request.json()
+        
+        if not isinstance(request_data, dict) or 'data' not in request_data:
+            return create_error_response("请求格式错误：需要包含data字段的字典")
+        
+        data_type = request_data.get('data_type', '企业招聘岗位')
+        validated_data = talent_analyzer.validate_industry_data(request_data['data'])
+        
+        df = pd.DataFrame(validated_data)
+        df = talent_analyzer.preprocess_data(df)
+        results = talent_analyzer.analyze_industry_data(df, data_type)
+        
+        if not results:
+            return create_error_response("未能生成有效的分析结果")
+        
+        api_results = [result.to_dict() for result in results]
+        summary = talent_analyzer.generate_summary(results)
+        
+        return create_success_response(
+            message=f"企业招聘岗位行业趋势分析完成，共分析{len(results)}个行业",
+            data=api_results,
+            summary=summary
+        )
+        
+    except Exception as e:
+        logger.error(f"企业分析异常: {e}")
+        logger.error(traceback.format_exc())
+        return create_error_response("分析过程出错")
+
+
+@app.post("/talent/analyze-nonlocal",
+          summary="外地户籍在本城市就职人数变化趋势分析",
+          description="分析外地户籍人员在本城市就职的人数变化趋势")
+async def analyze_nonlocal_count(request: Request):
+    """外地户籍在本城市就职人数变化趋势分析"""
+    try:
+        request_data = await request.json()
+        
+        if not isinstance(request_data, dict) or 'data' not in request_data:
+            return create_error_response("请求格式错误：需要包含data字段的字典")
+        
+        validated_data = talent_analyzer.validate_nonlocal_data(request_data['data'])
+        
+        df = pd.DataFrame(validated_data)
+        df = talent_analyzer.preprocess_data(df)
+        result = talent_analyzer.analyze_nonlocal_data(df)
+        
+        if not result:
+            return create_error_response("未能生成有效的分析结果")
+        
+        api_result = result.to_dict()
+        
+        summary = {
+            "data_points": result.total_records,
+            "stability_level": result.stability_rating,
+            "trend_level": result.trend_rating,
+            "overall_change": result.total_change_pct,
+            "is_growing": bool(result.total_change_pct > 0)
+        }
+        
+        return create_success_response(
+            message="外地户籍就职趋势分析完成",
+            data=api_result,
+            summary=summary
+        )
+        
+    except Exception as e:
+        logger.error(f"外地户籍分析异常: {e}")
+        logger.error(traceback.format_exc())
+        return create_error_response("分析过程出错")
 
 
 
@@ -499,8 +569,7 @@ async def global_exception_handler(request, exc):
 # ==================== 启动配置 ====================
 
 if __name__ == "__main__":
-    # 启动服务器
-    print("🚀 正在启动政策系统统一API服务...")
+    print("🚀 正在启动政策与人才流动统一分析API服务...")
     print("📖 API文档地址: http://localhost:8081/docs")
     print("🩺 健康检查: http://localhost:8081/health")
     print()
@@ -520,8 +589,12 @@ if __name__ == "__main__":
     print("   • 单个预审: http://localhost:8081/enterprise/audit-single")
     print("   • 批量预审: http://localhost:8081/enterprise/batch-audit")
     print()
-    print("✨ 特性: 严格0或1结果 + 最大容错性，非法输入返回0而不是错误")
-    print("=" * 60)
+    print("📊 人才流动分析接口:")
+    print("   • 求职者分析: http://localhost:8081/talent/analyze-applicant")
+    print("   • 企业招聘分析: http://localhost:8081/talent/analyze-corporate")
+    print("   • 外地户籍分析: http://localhost:8081/talent/analyze-nonlocal")
+    print()
+    print("=" * 70)
     print("按 Ctrl+C 停止服务")
 
     uvicorn.run(
