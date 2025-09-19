@@ -263,7 +263,7 @@ async def enterprise_batch_recommend(request: Request):
 
 @app.post("/user/audit-single",
           summary="单个用户政策预审",
-          description="针对单个用户和单个政策进行预审，自动处理非法输入")
+          description="针对单个用户和单个政策进行预审，返回审核结果和不符合的条件详情")
 async def user_audit_single_policy(request: Request):
     """单个用户政策预审接口"""
     try:
@@ -271,19 +271,14 @@ async def user_audit_single_policy(request: Request):
         user_data = request_data.get('user', {})
         policy_data = request_data.get('policy', {})
 
-        user_dict = user_data_processor.process_user_data(user_data)
-        policy_dict = user_data_processor.process_policy_data(policy_data)
-
-        if user_data_processor.validate_match_input(user_dict, policy_dict):
-            result = user_audit_engine.audit_policy(user_dict, policy_dict)
-            result = 1 if result else 0
-        else:
-            result = 0
+        # 调用修改后的预审方法，返回详细结果
+        audit_result = user_audit_engine.audit_policy(user_data, policy_data)
 
         return {
             "status_code": 200,
-            "result": result,
-            "message": "预审完成"
+            "result": audit_result.get("result", 0),
+            "failed_conditions": audit_result.get("failed_conditions", []),
+            "message": audit_result.get("message", "预审完成")
         }
 
     except Exception as e:
@@ -292,13 +287,14 @@ async def user_audit_single_policy(request: Request):
         return {
             "status_code": 200,
             "result": 0,
-            "message": "预审完成"
+            "failed_conditions": [f"系统异常: {str(e)}"],
+            "message": "预审过程中发生异常"
         }
 
 
 @app.post("/user/batch-audit",
           summary="批量用户预审",
-          description="多个用户与单个政策进行预审，只返回预审通过的用户ID")
+          description="多个用户与单个政策进行预审，返回所有用户的预审结果和不符合条件详情")
 async def user_batch_audit(request: Request):
     """批量用户预审接口"""
     try:
@@ -309,30 +305,48 @@ async def user_batch_audit(request: Request):
         if not isinstance(users_data, list):
             users_data = [users_data] if users_data else []
 
-        policy_dict = user_data_processor.process_policy_data(policy_data)
+        # 调用修改后的多用户预审方法
+        audit_results = user_audit_engine.multi_user_audit_policy(users_data, policy_data)
+        
+        # 提取通过预审的用户ID（保持向后兼容）
         passed_user_ids = []
-
-        for user_data in users_data:
-            try:
-                user_dict = user_data_processor.process_user_data(user_data)
-                if user_data_processor.validate_match_input(user_dict, policy_dict):
-                    result = user_audit_engine.audit_policy(user_dict, policy_dict)
-                    if result == 1:
-                        user_id = user_dict.get("用户ID")
-                        if user_id:
-                            passed_user_ids.append(str(user_id))
-                        else:
-                            raw_user_dict = user_data_processor.safe_convert_to_dict(user_data)
-                            raw_user_id = raw_user_dict.get("用户ID")
-                            if raw_user_id:
-                                passed_user_ids.append(str(raw_user_id))
-            except Exception as e:
-                logger.error(f"处理用户时出错: {e}")
-                continue
+        detailed_results = []
+        
+        for i, user_data in enumerate(users_data):
+            if i < len(audit_results):
+                result = audit_results[i]
+                
+                # 获取用户ID
+                try:
+                    user_dict = user_data_processor.process_user_data(user_data)
+                    user_id = user_dict.get("用户ID")
+                    if not user_id:
+                        raw_user_dict = user_data_processor.safe_convert_to_dict(user_data)
+                        user_id = raw_user_dict.get("用户ID", f"User_{i}")
+                except:
+                    user_id = f"User_{i}"
+                
+                # 如果预审通过，添加到通过列表
+                if result.get("result", 0) == 1:
+                    passed_user_ids.append(str(user_id))
+                
+                # 添加到详细结果
+                detailed_results.append({
+                    "user_id": str(user_id),
+                    "result": result.get("result", 0),
+                    "failed_conditions": result.get("failed_conditions", []),
+                    "message": result.get("message", "")
+                })
 
         return {
             "status_code": 200,
-            "passed_user_ids": passed_user_ids,
+            "passed_user_ids": passed_user_ids,  # 保持向后兼容
+            "detailed_results": detailed_results,  # 新增的详细结果
+            "summary": {
+                "total_users": len(users_data),
+                "passed_users": len(passed_user_ids),
+                "pass_rate": round(len(passed_user_ids) / len(users_data), 3) if users_data else 0
+            },
             "message": "批量预审完成"
         }
 
@@ -342,9 +356,14 @@ async def user_batch_audit(request: Request):
         return {
             "status_code": 200,
             "passed_user_ids": [],
-            "message": "批量预审完成"
+            "detailed_results": [],
+            "summary": {
+                "total_users": 0,
+                "passed_users": 0,
+                "pass_rate": 0
+            },
+            "message": "批量预审过程中发生异常"
         }
-
 
 # ==================== 企业政策预审接口 ====================
 
