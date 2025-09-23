@@ -157,6 +157,7 @@ class PolicyAuditEngine:
             enterprise_id = processed_enterprise_data.get("企业ID", "Unknown")
             policy_id = processed_policy_data.get("政策编号", "Unknown")
             
+            
             self.logger.info(f"开始预审: 企业={enterprise_id}, 政策={policy_id}")
             
             # 获取条件规则

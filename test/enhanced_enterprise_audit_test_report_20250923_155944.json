@@ -1,0 +1,564 @@
+{
+  "test_summary": {
+    "test_time": "2025-09-23T15:59:44.628471",
+    "total_api_tests": 1,
+    "successful_api_tests": 1,
+    "audit_matrix_generated": true,
+    "enhancement_features": [
+      "详细失败条件",
+      "政策条件解析",
+      "统计分析",
+      "条件频次分析"
+    ],
+    "test_type": "企业政策预审"
+  },
+  "audit_summary": {
+    "total_audits": 400,
+    "total_passed": 72,
+    "total_failed": 328,
+    "overall_pass_rate": 18.0,
+    "enterprise_statistics": [
+      {
+        "enterprise_id": "ENT0001",
+        "total_policies": 8,
+        "passed_policies": 1,
+        "pass_rate": 12.5,
+        "failed_conditions_count": 10,
+        "unique_failed_conditions": 5
+      },
+      {
+        "enterprise_id": "ENT0002",
+        "total_policies": 8,
+        "passed_policies": 3,
+        "pass_rate": 37.5,
+        "failed_conditions_count": 6,
+        "unique_failed_conditions": 2
+      },
+      {
+        "enterprise_id": "ENT0003",
+        "total_policies": 8,
+        "passed_policies": 4,
+        "pass_rate": 50.0,
+        "failed_conditions_count": 4,
+        "unique_failed_conditions": 3
+      },
+      {
+        "enterprise_id": "ENT0004",
+        "total_policies": 8,
+        "passed_policies": 5,
+        "pass_rate": 62.5,
+        "failed_conditions_count": 3,
+        "unique_failed_conditions": 2
+      },
+      {
+        "enterprise_id": "ENT0005",
+        "total_policies": 8,
+        "passed_policies": 1,
+        "pass_rate": 12.5,
+        "failed_conditions_count": 11,
+        "unique_failed_conditions": 5
+      },
+      {
+        "enterprise_id": "ENT0006",
+        "total_policies": 8,
+        "passed_policies": 2,
+        "pass_rate": 25.0,
+        "failed_conditions_count": 9,
+        "unique_failed_conditions": 4
+      },
+      {
+        "enterprise_id": "ENT0007",
+        "total_policies": 8,
+        "passed_policies": 0,
+        "pass_rate": 0.0,
+        "failed_conditions_count": 18,
+        "unique_failed_conditions": 5
+      },
+      {
+        "enterprise_id": "ENT0008",
+        "total_policies": 8,
+        "passed_policies": 2,
+        "pass_rate": 25.0,
+        "failed_conditions_count": 8,
+        "unique_failed_conditions": 3
+      },
+      {
+        "enterprise_id": "ENT0009",
+        "total_policies": 8,
+        "passed_policies": 1,
+        "pass_rate": 12.5,
+        "failed_conditions_count": 9,
+        "unique_failed_conditions": 4
+      },
+      {
+        "enterprise_id": "ENT0010",
+        "total_policies": 8,
+        "passed_policies": 0,
+        "pass_rate": 0.0,
+        "failed_conditions_count": 18,
+        "unique_failed_conditions": 5
+      },
+      {
+        "enterprise_id": "ENT0011",
+        "total_policies": 8,
+        "passed_policies": 2,
+        "pass_rate": 25.0,
+        "failed_conditions_count": 12,
+        "unique_failed_conditions": 5
+      },
+      {
+        "enterprise_id": "ENT0012",
+        "total_policies": 8,
+        "passed_policies": 1,
+        "pass_rate": 12.5,
+        "failed_conditions_count": 9,
+        "unique_failed_conditions": 4
+      },
+      {
+        "enterprise_id": "ENT0013",
+        "total_policies": 8,
+        "passed_policies": 0,
+        "pass_rate": 0.0,
+        "failed_conditions_count": 24,
+        "unique_failed_conditions": 6
+      },
+      {
+        "enterprise_id": "ENT0014",
+        "total_policies": 8,
+        "passed_policies": 4,
+        "pass_rate": 50.0,
+        "failed_conditions_count": 5,
+        "unique_failed_conditions": 4
+      },
+      {
+        "enterprise_id": "ENT0015",
+        "total_policies": 8,
+        "passed_policies": 0,
+        "pass_rate": 0.0,
+        "failed_conditions_count": 12,
+        "unique_failed_conditions": 3
+      },
+      {
+        "enterprise_id": "ENT0016",
+        "total_policies": 8,
+        "passed_policies": 0,
+        "pass_rate": 0.0,
+        "failed_conditions_count": 18,
+        "unique_failed_conditions": 5
+      },
+      {
+        "enterprise_id": "ENT0017",
+        "total_policies": 8,
+        "passed_policies": 2,
+        "pass_rate": 25.0,
+        "failed_conditions_count": 11,
+        "unique_failed_conditions": 5
+      },
+      {
+        "enterprise_id": "ENT0018",
+        "total_policies": 8,
+        "passed_policies": 1,
+        "pass_rate": 12.5,
+        "failed_conditions_count": 9,
+        "unique_failed_conditions": 4
+      },
+      {
+        "enterprise_id": "ENT0019",
+        "total_policies": 8,
+        "passed_policies": 0,
+        "pass_rate": 0.0,
+        "failed_conditions_count": 13,
+        "unique_failed_conditions": 4
+      },
+      {
+        "enterprise_id": "ENT0020",
+        "total_policies": 8,
+        "passed_policies": 1,
+        "pass_rate": 12.5,
+        "failed_conditions_count": 9,
+        "unique_failed_conditions": 4
+      },
+      {
+        "enterprise_id": "ENT0021",
+        "total_policies": 8,
+        "passed_policies": 2,
+        "pass_rate": 25.0,
+        "failed_conditions_count": 8,
+        "unique_failed_conditions": 3
+      },
+      {
+        "enterprise_id": "ENT0022",
+        "total_policies": 8,
+        "passed_policies": 0,
+        "pass_rate": 0.0,
+        "failed_conditions_count": 19,
+        "unique_failed_conditions": 6
+      },
+      {
+        "enterprise_id": "ENT0023",
+        "total_policies": 8,
+        "passed_policies": 4,
+        "pass_rate": 50.0,
+        "failed_conditions_count": 6,
+        "unique_failed_conditions": 4
+      },
+      {
+        "enterprise_id": "ENT0024",
+        "total_policies": 8,
+        "passed_policies": 0,
+        "pass_rate": 0.0,
+        "failed_conditions_count": 14,
+        "unique_failed_conditions": 5
+      },
+      {
+        "enterprise_id": "ENT0025",
+        "total_policies": 8,
+        "passed_policies": 0,
+        "pass_rate": 0.0,
+        "failed_conditions_count": 18,
+        "unique_failed_conditions": 5
+      },
+      {
+        "enterprise_id": "ENT0026",
+        "total_policies": 8,
+        "passed_policies": 4,
+        "pass_rate": 50.0,
+        "failed_conditions_count": 4,
+        "unique_failed_conditions": 3
+      },
+      {
+        "enterprise_id": "ENT0027",
+        "total_policies": 8,
+        "passed_policies": 0,
+        "pass_rate": 0.0,
+        "failed_conditions_count": 12,
+        "unique_failed_conditions": 3
+      },
+      {
+        "enterprise_id": "ENT0028",
+        "total_policies": 8,
+        "passed_policies": 0,
+        "pass_rate": 0.0,
+        "failed_conditions_count": 14,
+        "unique_failed_conditions": 5
+      },
+      {
+        "enterprise_id": "ENT0029",
+        "total_policies": 8,
+        "passed_policies": 0,
+        "pass_rate": 0.0,
+        "failed_conditions_count": 16,
+        "unique_failed_conditions": 6
+      },
+      {
+        "enterprise_id": "ENT0030",
+        "total_policies": 8,
+        "passed_policies": 3,
+        "pass_rate": 37.5,
+        "failed_conditions_count": 6,
+        "unique_failed_conditions": 4
+      },
+      {
+        "enterprise_id": "ENT0031",
+        "total_policies": 8,
+        "passed_policies": 0,
+        "pass_rate": 0.0,
+        "failed_conditions_count": 20,
+        "unique_failed_conditions": 6
+      },
+      {
+        "enterprise_id": "ENT0032",
+        "total_policies": 8,
+        "passed_policies": 4,
+        "pass_rate": 50.0,
+        "failed_conditions_count": 5,
+        "unique_failed_conditions": 4
+      },
+      {
+        "enterprise_id": "ENT0033",
+        "total_policies": 8,
+        "passed_policies": 0,
+        "pass_rate": 0.0,
+        "failed_conditions_count": 12,
+        "unique_failed_conditions": 3
+      },
+      {
+        "enterprise_id": "ENT0034",
+        "total_policies": 8,
+        "passed_policies": 0,
+        "pass_rate": 0.0,
+        "failed_conditions_count": 18,
+        "unique_failed_conditions": 5
+      },
+      {
+        "enterprise_id": "ENT0035",
+        "total_policies": 8,
+        "passed_policies": 4,
+        "pass_rate": 50.0,
+        "failed_conditions_count": 6,
+        "unique_failed_conditions": 4
+      },
+      {
+        "enterprise_id": "ENT0036",
+        "total_policies": 8,
+        "passed_policies": 2,
+        "pass_rate": 25.0,
+        "failed_conditions_count": 7,
+        "unique_failed_conditions": 3
+      },
+      {
+        "enterprise_id": "ENT0037",
+        "total_policies": 8,
+        "passed_policies": 2,
+        "pass_rate": 25.0,
+        "failed_conditions_count": 11,
+        "unique_failed_conditions": 4
+      },
+      {
+        "enterprise_id": "ENT0038",
+        "total_policies": 8,
+        "passed_policies": 1,
+        "pass_rate": 12.5,
+        "failed_conditions_count": 10,
+        "unique_failed_conditions": 5
+      },
+      {
+        "enterprise_id": "ENT0039",
+        "total_policies": 8,
+        "passed_policies": 2,
+        "pass_rate": 25.0,
+        "failed_conditions_count": 9,
+        "unique_failed_conditions": 4
+      },
+      {
+        "enterprise_id": "ENT0040",
+        "total_policies": 8,
+        "passed_policies": 0,
+        "pass_rate": 0.0,
+        "failed_conditions_count": 18,
+        "unique_failed_conditions": 5
+      },
+      {
+        "enterprise_id": "ENT0041",
+        "total_policies": 8,
+        "passed_policies": 3,
+        "pass_rate": 37.5,
+        "failed_conditions_count": 6,
+        "unique_failed_conditions": 4
+      },
+      {
+        "enterprise_id": "ENT0042",
+        "total_policies": 8,
+        "passed_policies": 0,
+        "pass_rate": 0.0,
+        "failed_conditions_count": 15,
+        "unique_failed_conditions": 5
+      },
+      {
+        "enterprise_id": "ENT0043",
+        "total_policies": 8,
+        "passed_policies": 1,
+        "pass_rate": 12.5,
+        "failed_conditions_count": 10,
+        "unique_failed_conditions": 5
+      },
+      {
+        "enterprise_id": "ENT0044",
+        "total_policies": 8,
+        "passed_policies": 0,
+        "pass_rate": 0.0,
+        "failed_conditions_count": 14,
+        "unique_failed_conditions": 5
+      },
+      {
+        "enterprise_id": "ENT0045",
+        "total_policies": 8,
+        "passed_policies": 2,
+        "pass_rate": 25.0,
+        "failed_conditions_count": 7,
+        "unique_failed_conditions": 2
+      },
+      {
+        "enterprise_id": "ENT0046",
+        "total_policies": 8,
+        "passed_policies": 1,
+        "pass_rate": 12.5,
+        "failed_conditions_count": 9,
+        "unique_failed_conditions": 4
+      },
+      {
+        "enterprise_id": "ENT0047",
+        "total_policies": 8,
+        "passed_policies": 0,
+        "pass_rate": 0.0,
+        "failed_conditions_count": 18,
+        "unique_failed_conditions": 5
+      },
+      {
+        "enterprise_id": "ENT0048",
+        "total_policies": 8,
+        "passed_policies": 2,
+        "pass_rate": 25.0,
+        "failed_conditions_count": 10,
+        "unique_failed_conditions": 5
+      },
+      {
+        "enterprise_id": "ENT0049",
+        "total_policies": 8,
+        "passed_policies": 1,
+        "pass_rate": 12.5,
+        "failed_conditions_count": 12,
+        "unique_failed_conditions": 6
+      },
+      {
+        "enterprise_id": "ENT0050",
+        "total_policies": 8,
+        "passed_policies": 4,
+        "pass_rate": 50.0,
+        "failed_conditions_count": 4,
+        "unique_failed_conditions": 3
+      }
+    ],
+    "policy_statistics": [
+      {
+        "policy_id": "POL0009",
+        "total_enterprises": 50,
+        "passed_enterprises": 9,
+        "pass_rate": 18.0,
+        "total_failed_conditions": 73,
+        "unique_failed_conditions": 3
+      },
+      {
+        "policy_id": "POL0010",
+        "total_enterprises": 50,
+        "passed_enterprises": 0,
+        "pass_rate": 0.0,
+        "total_failed_conditions": 129,
+        "unique_failed_conditions": 5
+      },
+      {
+        "policy_id": "POL0011",
+        "total_enterprises": 50,
+        "passed_enterprises": 10,
+        "pass_rate": 20.0,
+        "total_failed_conditions": 57,
+        "unique_failed_conditions": 3
+      },
+      {
+        "policy_id": "POL0012",
+        "total_enterprises": 50,
+        "passed_enterprises": 8,
+        "pass_rate": 16.0,
+        "total_failed_conditions": 63,
+        "unique_failed_conditions": 4
+      },
+      {
+        "policy_id": "POL0013",
+        "total_enterprises": 50,
+        "passed_enterprises": 19,
+        "pass_rate": 38.0,
+        "total_failed_conditions": 41,
+        "unique_failed_conditions": 2
+      },
+      {
+        "policy_id": "POL0014",
+        "total_enterprises": 50,
+        "passed_enterprises": 22,
+        "pass_rate": 44.0,
+        "total_failed_conditions": 29,
+        "unique_failed_conditions": 2
+      },
+      {
+        "policy_id": "POL0015",
+        "total_enterprises": 50,
+        "passed_enterprises": 2,
+        "pass_rate": 4.0,
+        "total_failed_conditions": 88,
+        "unique_failed_conditions": 4
+      },
+      {
+        "policy_id": "POL0016",
+        "total_enterprises": 50,
+        "passed_enterprises": 2,
+        "pass_rate": 4.0,
+        "total_failed_conditions": 76,
+        "unique_failed_conditions": 4
+      }
+    ]
+  },
+  "failed_conditions_summary": {
+    "total_failed_conditions": 556,
+    "unique_failed_conditions": 8,
+    "most_common_conditions": [
+      {
+        "condition": "经营时间",
+        "count": 140,
+        "percentage": 25.2
+      },
+      {
+        "condition": "注册地",
+        "count": 104,
+        "percentage": 18.7
+      },
+      {
+        "condition": "缴纳社保",
+        "count": 96,
+        "percentage": 17.3
+      },
+      {
+        "condition": "贷款情况",
+        "count": 64,
+        "percentage": 11.5
+      },
+      {
+        "condition": "行业",
+        "count": 63,
+        "percentage": 11.3
+      },
+      {
+        "condition": "法人毕业年限",
+        "count": 50,
+        "percentage": 9.0
+      },
+      {
+        "condition": "企业规模",
+        "count": 24,
+        "percentage": 4.3
+      },
+      {
+        "condition": "营业执照",
+        "count": 15,
+        "percentage": 2.7
+      }
+    ]
+  },
+  "detailed_results": {
+    "api_tests": [
+      {
+        "test_name": "健康检查",
+        "endpoint": "/health",
+        "method": "GET",
+        "status_code": 200,
+        "response_time": 7.02,
+        "success": true,
+        "response_data": {
+          "status": "healthy",
+          "service": "政策与人才流动统一分析API",
+          "modules": [
+            "用户政策匹配",
+            "企业政策匹配",
+            "用户政策预审",
+            "企业政策预审",
+            "求职者意向分析",
+            "企业招聘分析",
+            "外地户籍分析"
+          ],
+          "version": "5.0.0"
+        },
+        "timestamp": "2025-09-23T15:58:57.744481"
+      }
+    ],
+    "performance_tests": [],
+    "accuracy_tests": []
+  }
+}

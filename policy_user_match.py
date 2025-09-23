@@ -33,6 +33,16 @@ class PolicyMatchEngine:
             匹配结果: 1-匹配, 0-不匹配
         """
         try:
+
+            # 处理输入数据
+            processed_user_data = self.data_processor.process_user_data(user_data)
+            processed_policy_data = self.data_processor.process_policy_data(policy_data)
+            
+            # 验证输入数据（包括政策类型检查）
+            if not self.data_processor.validate_match_input(processed_user_data, processed_policy_data):
+                self.logger.warning("输入数据验证失败")
+                return 0
+
             user_id = user_data.get("用户ID", "Unknown")
             policy_id = policy_data.get("政策编号", "Unknown")
             
