@@ -1,0 +1,567 @@
+{
+  "test_summary": {
+    "test_time": "2025-09-22T15:15:24.565164",
+    "total_api_tests": 1,
+    "successful_api_tests": 1,
+    "audit_matrix_generated": true,
+    "enhancement_features": [
+      "详细失败条件",
+      "统计分析",
+      "条件频次分析"
+    ]
+  },
+  "audit_summary": {
+    "total_audits": 400,
+    "total_passed": 44,
+    "total_failed": 356,
+    "overall_pass_rate": 11.0,
+    "user_statistics": [
+      {
+        "user_id": "U0001",
+        "total_policies": 8,
+        "passed_policies": 3,
+        "pass_rate": 37.5,
+        "failed_conditions_count": 10,
+        "unique_failed_conditions": 4
+      },
+      {
+        "user_id": "U0002",
+        "total_policies": 8,
+        "passed_policies": 1,
+        "pass_rate": 12.5,
+        "failed_conditions_count": 18,
+        "unique_failed_conditions": 6
+      },
+      {
+        "user_id": "U0003",
+        "total_policies": 8,
+        "passed_policies": 2,
+        "pass_rate": 25.0,
+        "failed_conditions_count": 10,
+        "unique_failed_conditions": 4
+      },
+      {
+        "user_id": "U0004",
+        "total_policies": 8,
+        "passed_policies": 4,
+        "pass_rate": 50.0,
+        "failed_conditions_count": 8,
+        "unique_failed_conditions": 5
+      },
+      {
+        "user_id": "U0005",
+        "total_policies": 8,
+        "passed_policies": 1,
+        "pass_rate": 12.5,
+        "failed_conditions_count": 15,
+        "unique_failed_conditions": 6
+      },
+      {
+        "user_id": "U0006",
+        "total_policies": 8,
+        "passed_policies": 1,
+        "pass_rate": 12.5,
+        "failed_conditions_count": 18,
+        "unique_failed_conditions": 6
+      },
+      {
+        "user_id": "U0007",
+        "total_policies": 8,
+        "passed_policies": 1,
+        "pass_rate": 12.5,
+        "failed_conditions_count": 19,
+        "unique_failed_conditions": 9
+      },
+      {
+        "user_id": "U0008",
+        "total_policies": 8,
+        "passed_policies": 4,
+        "pass_rate": 50.0,
+        "failed_conditions_count": 8,
+        "unique_failed_conditions": 4
+      },
+      {
+        "user_id": "U0009",
+        "total_policies": 8,
+        "passed_policies": 0,
+        "pass_rate": 0.0,
+        "failed_conditions_count": 18,
+        "unique_failed_conditions": 6
+      },
+      {
+        "user_id": "U0010",
+        "total_policies": 8,
+        "passed_policies": 1,
+        "pass_rate": 12.5,
+        "failed_conditions_count": 14,
+        "unique_failed_conditions": 6
+      },
+      {
+        "user_id": "U0011",
+        "total_policies": 8,
+        "passed_policies": 2,
+        "pass_rate": 25.0,
+        "failed_conditions_count": 14,
+        "unique_failed_conditions": 5
+      },
+      {
+        "user_id": "U0012",
+        "total_policies": 8,
+        "passed_policies": 0,
+        "pass_rate": 0.0,
+        "failed_conditions_count": 21,
+        "unique_failed_conditions": 8
+      },
+      {
+        "user_id": "U0013",
+        "total_policies": 8,
+        "passed_policies": 0,
+        "pass_rate": 0.0,
+        "failed_conditions_count": 19,
+        "unique_failed_conditions": 6
+      },
+      {
+        "user_id": "U0014",
+        "total_policies": 8,
+        "passed_policies": 4,
+        "pass_rate": 50.0,
+        "failed_conditions_count": 8,
+        "unique_failed_conditions": 5
+      },
+      {
+        "user_id": "U0015",
+        "total_policies": 8,
+        "passed_policies": 2,
+        "pass_rate": 25.0,
+        "failed_conditions_count": 13,
+        "unique_failed_conditions": 7
+      },
+      {
+        "user_id": "U0016",
+        "total_policies": 8,
+        "passed_policies": 1,
+        "pass_rate": 12.5,
+        "failed_conditions_count": 15,
+        "unique_failed_conditions": 6
+      },
+      {
+        "user_id": "U0017",
+        "total_policies": 8,
+        "passed_policies": 0,
+        "pass_rate": 0.0,
+        "failed_conditions_count": 18,
+        "unique_failed_conditions": 7
+      },
+      {
+        "user_id": "U0018",
+        "total_policies": 8,
+        "passed_policies": 1,
+        "pass_rate": 12.5,
+        "failed_conditions_count": 15,
+        "unique_failed_conditions": 6
+      },
+      {
+        "user_id": "U0019",
+        "total_policies": 8,
+        "passed_policies": 0,
+        "pass_rate": 0.0,
+        "failed_conditions_count": 15,
+        "unique_failed_conditions": 8
+      },
+      {
+        "user_id": "U0020",
+        "total_policies": 8,
+        "passed_policies": 2,
+        "pass_rate": 25.0,
+        "failed_conditions_count": 14,
+        "unique_failed_conditions": 5
+      },
+      {
+        "user_id": "U0021",
+        "total_policies": 8,
+        "passed_policies": 0,
+        "pass_rate": 0.0,
+        "failed_conditions_count": 20,
+        "unique_failed_conditions": 8
+      },
+      {
+        "user_id": "U0022",
+        "total_policies": 8,
+        "passed_policies": 0,
+        "pass_rate": 0.0,
+        "failed_conditions_count": 19,
+        "unique_failed_conditions": 8
+      },
+      {
+        "user_id": "U0023",
+        "total_policies": 8,
+        "passed_policies": 0,
+        "pass_rate": 0.0,
+        "failed_conditions_count": 19,
+        "unique_failed_conditions": 8
+      },
+      {
+        "user_id": "U0024",
+        "total_policies": 8,
+        "passed_policies": 1,
+        "pass_rate": 12.5,
+        "failed_conditions_count": 16,
+        "unique_failed_conditions": 7
+      },
+      {
+        "user_id": "U0025",
+        "total_policies": 8,
+        "passed_policies": 0,
+        "pass_rate": 0.0,
+        "failed_conditions_count": 22,
+        "unique_failed_conditions": 8
+      },
+      {
+        "user_id": "U0026",
+        "total_policies": 8,
+        "passed_policies": 0,
+        "pass_rate": 0.0,
+        "failed_conditions_count": 17,
+        "unique_failed_conditions": 8
+      },
+      {
+        "user_id": "U0027",
+        "total_policies": 8,
+        "passed_policies": 0,
+        "pass_rate": 0.0,
+        "failed_conditions_count": 18,
+        "unique_failed_conditions": 7
+      },
+      {
+        "user_id": "U0028",
+        "total_policies": 8,
+        "passed_policies": 0,
+        "pass_rate": 0.0,
+        "failed_conditions_count": 21,
+        "unique_failed_conditions": 8
+      },
+      {
+        "user_id": "U0029",
+        "total_policies": 8,
+        "passed_policies": 0,
+        "pass_rate": 0.0,
+        "failed_conditions_count": 18,
+        "unique_failed_conditions": 7
+      },
+      {
+        "user_id": "U0030",
+        "total_policies": 8,
+        "passed_policies": 0,
+        "pass_rate": 0.0,
+        "failed_conditions_count": 23,
+        "unique_failed_conditions": 9
+      },
+      {
+        "user_id": "U0031",
+        "total_policies": 8,
+        "passed_policies": 0,
+        "pass_rate": 0.0,
+        "failed_conditions_count": 19,
+        "unique_failed_conditions": 9
+      },
+      {
+        "user_id": "U0032",
+        "total_policies": 8,
+        "passed_policies": 2,
+        "pass_rate": 25.0,
+        "failed_conditions_count": 14,
+        "unique_failed_conditions": 5
+      },
+      {
+        "user_id": "U0033",
+        "total_policies": 8,
+        "passed_policies": 0,
+        "pass_rate": 0.0,
+        "failed_conditions_count": 18,
+        "unique_failed_conditions": 7
+      },
+      {
+        "user_id": "U0034",
+        "total_policies": 8,
+        "passed_policies": 1,
+        "pass_rate": 12.5,
+        "failed_conditions_count": 12,
+        "unique_failed_conditions": 5
+      },
+      {
+        "user_id": "U0035",
+        "total_policies": 8,
+        "passed_policies": 1,
+        "pass_rate": 12.5,
+        "failed_conditions_count": 15,
+        "unique_failed_conditions": 6
+      },
+      {
+        "user_id": "U0036",
+        "total_policies": 8,
+        "passed_policies": 0,
+        "pass_rate": 0.0,
+        "failed_conditions_count": 24,
+        "unique_failed_conditions": 9
+      },
+      {
+        "user_id": "U0037",
+        "total_policies": 8,
+        "passed_policies": 1,
+        "pass_rate": 12.5,
+        "failed_conditions_count": 18,
+        "unique_failed_conditions": 6
+      },
+      {
+        "user_id": "U0038",
+        "total_policies": 8,
+        "passed_policies": 0,
+        "pass_rate": 0.0,
+        "failed_conditions_count": 15,
+        "unique_failed_conditions": 8
+      },
+      {
+        "user_id": "U0039",
+        "total_policies": 8,
+        "passed_policies": 0,
+        "pass_rate": 0.0,
+        "failed_conditions_count": 23,
+        "unique_failed_conditions": 9
+      },
+      {
+        "user_id": "U0040",
+        "total_policies": 8,
+        "passed_policies": 0,
+        "pass_rate": 0.0,
+        "failed_conditions_count": 20,
+        "unique_failed_conditions": 8
+      },
+      {
+        "user_id": "U0041",
+        "total_policies": 8,
+        "passed_policies": 0,
+        "pass_rate": 0.0,
+        "failed_conditions_count": 21,
+        "unique_failed_conditions": 8
+      },
+      {
+        "user_id": "U0042",
+        "total_policies": 8,
+        "passed_policies": 2,
+        "pass_rate": 25.0,
+        "failed_conditions_count": 11,
+        "unique_failed_conditions": 6
+      },
+      {
+        "user_id": "U0043",
+        "total_policies": 8,
+        "passed_policies": 0,
+        "pass_rate": 0.0,
+        "failed_conditions_count": 20,
+        "unique_failed_conditions": 8
+      },
+      {
+        "user_id": "U0044",
+        "total_policies": 8,
+        "passed_policies": 0,
+        "pass_rate": 0.0,
+        "failed_conditions_count": 23,
+        "unique_failed_conditions": 9
+      },
+      {
+        "user_id": "U0045",
+        "total_policies": 8,
+        "passed_policies": 0,
+        "pass_rate": 0.0,
+        "failed_conditions_count": 16,
+        "unique_failed_conditions": 8
+      },
+      {
+        "user_id": "U0046",
+        "total_policies": 8,
+        "passed_policies": 2,
+        "pass_rate": 25.0,
+        "failed_conditions_count": 14,
+        "unique_failed_conditions": 5
+      },
+      {
+        "user_id": "U0047",
+        "total_policies": 8,
+        "passed_policies": 3,
+        "pass_rate": 37.5,
+        "failed_conditions_count": 10,
+        "unique_failed_conditions": 6
+      },
+      {
+        "user_id": "U0048",
+        "total_policies": 8,
+        "passed_policies": 0,
+        "pass_rate": 0.0,
+        "failed_conditions_count": 18,
+        "unique_failed_conditions": 7
+      },
+      {
+        "user_id": "U0049",
+        "total_policies": 8,
+        "passed_policies": 0,
+        "pass_rate": 0.0,
+        "failed_conditions_count": 16,
+        "unique_failed_conditions": 6
+      },
+      {
+        "user_id": "U0050",
+        "total_policies": 8,
+        "passed_policies": 1,
+        "pass_rate": 12.5,
+        "failed_conditions_count": 18,
+        "unique_failed_conditions": 7
+      }
+    ],
+    "policy_statistics": [
+      {
+        "policy_id": "POL0001",
+        "total_users": 50,
+        "passed_users": 4,
+        "pass_rate": 8.0,
+        "total_failed_conditions": 72,
+        "unique_failed_conditions": 3
+      },
+      {
+        "policy_id": "POL0002",
+        "total_users": 50,
+        "passed_users": 1,
+        "pass_rate": 2.0,
+        "total_failed_conditions": 109,
+        "unique_failed_conditions": 3
+      },
+      {
+        "policy_id": "POL0003",
+        "total_users": 50,
+        "passed_users": 1,
+        "pass_rate": 2.0,
+        "total_failed_conditions": 93,
+        "unique_failed_conditions": 3
+      },
+      {
+        "policy_id": "POL0004",
+        "total_users": 50,
+        "passed_users": 5,
+        "pass_rate": 10.0,
+        "total_failed_conditions": 61,
+        "unique_failed_conditions": 2
+      },
+      {
+        "policy_id": "POL0005",
+        "total_users": 50,
+        "passed_users": 1,
+        "pass_rate": 2.0,
+        "total_failed_conditions": 237,
+        "unique_failed_conditions": 6
+      },
+      {
+        "policy_id": "POL0006",
+        "total_users": 50,
+        "passed_users": 17,
+        "pass_rate": 34.0,
+        "total_failed_conditions": 44,
+        "unique_failed_conditions": 2
+      },
+      {
+        "policy_id": "POL0007",
+        "total_users": 50,
+        "passed_users": 13,
+        "pass_rate": 26.0,
+        "total_failed_conditions": 47,
+        "unique_failed_conditions": 2
+      },
+      {
+        "policy_id": "POL0008",
+        "total_users": 50,
+        "passed_users": 2,
+        "pass_rate": 4.0,
+        "total_failed_conditions": 165,
+        "unique_failed_conditions": 3
+      }
+    ]
+  },
+  "failed_conditions_summary": {
+    "total_failed_conditions": 828,
+    "unique_failed_conditions": 9,
+    "most_common_conditions": [
+      {
+        "condition": "毕业时间",
+        "count": 198,
+        "percentage": 23.9
+      },
+      {
+        "condition": "年龄",
+        "count": 133,
+        "percentage": 16.1
+      },
+      {
+        "condition": "就业类型",
+        "count": 132,
+        "percentage": 15.9
+      },
+      {
+        "condition": "缴纳社保",
+        "count": 81,
+        "percentage": 9.8
+      },
+      {
+        "condition": "困难人员",
+        "count": 80,
+        "percentage": 9.7
+      },
+      {
+        "condition": "籍贯",
+        "count": 64,
+        "percentage": 7.7
+      },
+      {
+        "condition": "性别",
+        "count": 49,
+        "percentage": 5.9
+      },
+      {
+        "condition": "参保地",
+        "count": 49,
+        "percentage": 5.9
+      },
+      {
+        "condition": "养老保险",
+        "count": 42,
+        "percentage": 5.1
+      }
+    ]
+  },
+  "detailed_results": {
+    "api_tests": [
+      {
+        "test_name": "健康检查",
+        "endpoint": "/health",
+        "method": "GET",
+        "status_code": 200,
+        "response_time": 10.09,
+        "success": true,
+        "response_data": {
+          "status": "healthy",
+          "service": "政策与人才流动统一分析API",
+          "modules": [
+            "用户政策匹配",
+            "企业政策匹配",
+            "用户政策预审",
+            "企业政策预审",
+            "求职者意向分析",
+            "企业招聘分析",
+            "外地户籍分析"
+          ],
+          "version": "5.0.0"
+        },
+        "timestamp": "2025-09-22T15:14:37.870227"
+      }
+    ],
+    "performance_tests": [],
+    "accuracy_tests": []
+  }
+}
