@@ -44,7 +44,7 @@ class SimpleEnterprisePolicyTester:
             logger.error("请确保API服务正在运行！")
     
     def load_test_data(self, policy_folder: str = "policy_new", enterprise_folder: str = "enterprise_dataset", 
-                       policy_limit: int = 8, enterprise_limit: int = 50):
+                       policy_limit: int = 16, enterprise_limit: int = 50):
         """加载测试数据 - 只加载企业政策"""
         logger.info(f"📂 开始加载测试数据")
         logger.info(f"   政策文件夹: {policy_folder} (限制: {policy_limit})")
@@ -546,16 +546,13 @@ class SimpleEnterprisePolicyTester:
                 cell = ws.cell(row=row, column=col, value=match_score)
                 cell.alignment = Alignment(horizontal='center', vertical='center')
                 cell.border = border
-                cell.number_format = '0.0000'
+                cell.number_format = '0'
                 
                 # 根据匹配度设置颜色
-                if match_score >= 0.8:
+                if match_score == 1:
                     cell.fill = PatternFill(start_color="92D050", end_color="92D050", fill_type="solid")  # 绿色
-                elif match_score >= 0.6:
-                    cell.fill = PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")  # 黄色
-                elif match_score >= 0.3:
-                    cell.fill = PatternFill(start_color="FFC000", end_color="FFC000", fill_type="solid")  # 橙色
-                else:
+                    cell.font = Font(bold=True)
+                else:  # match_score == 0
                     cell.fill = PatternFill(start_color="FF0000", end_color="FF0000", fill_type="solid")  # 红色
                     cell.font = Font(color="FFFFFF")
                 
@@ -618,7 +615,7 @@ class SimpleEnterprisePolicyTester:
             ws.cell(row=row, column=1, value=enterprise_id)
             ws.cell(row=row, column=2, value=round(np.mean(scores), 2))
             ws.cell(row=row, column=3, value=round(max(scores), 2))
-            ws.cell(row=row, column=4, value=sum(1 for s in scores if s > 0.5))
+            ws.cell(row=row, column=4, value=sum(1 for s in scores if s == 1))  # 完全匹配数
             ws.cell(row=row, column=5, value=f"{sum(successes)}/{len(successes)}")
             row += 1
         
@@ -657,7 +654,7 @@ class SimpleEnterprisePolicyTester:
             ws.cell(row=row, column=1, value=policy_id)
             ws.cell(row=row, column=2, value=stats['title'][:50])  # 限制长度
             ws.cell(row=row, column=3, value=round(np.mean(scores), 2))
-            ws.cell(row=row, column=4, value=sum(1 for score in scores if score > 0.5))
+            ws.cell(row=row, column=4, value=sum(1 for score in scores if score == 1))  # 完全匹配企业数
             ws.cell(row=row, column=5, value=f"{sum(successes)}/{len(successes)}")
             row += 1
         
@@ -677,8 +674,8 @@ class SimpleEnterprisePolicyTester:
             ("平均匹配度", round(np.mean(all_scores), 2)),
             ("最高匹配度", round(max(all_scores), 2)),
             ("标准差", round(np.std(all_scores), 2)),
-            ("高匹配数(>0.5)", sum(1 for s in all_scores if s > 0.5)),
-            ("高匹配率", f"{sum(1 for s in all_scores if s > 0.5)/len(all_scores)*100:.1f}%"),
+            ("完全匹配数", sum(1 for s in all_scores if s == 1)),
+            ("完全匹配率", f"{sum(1 for s in all_scores if s == 1)/len(all_scores)*100:.1f}%")
         ]
         
         for stat_name, stat_value in stats_data:
@@ -690,7 +687,7 @@ class SimpleEnterprisePolicyTester:
         for i, width in enumerate([15, 40, 15, 20, 15], 1):
             ws.column_dimensions[chr(64 + i)].width = width
     
-    def run_enterprise_test(self, policy_limit: int = 8, enterprise_limit: int = 50):
+    def run_enterprise_test(self, policy_limit: int = 50, enterprise_limit: int = 50):
         """运行企业政策匹配测试"""
         logger.info("🚀 开始企业政策推荐系统测试")
         logger.info("="*60)
@@ -740,7 +737,7 @@ class SimpleEnterprisePolicyTester:
         logger.info(f"   🔢 总测试数: {len(all_scores)} 次")
         logger.info(f"   ✅ 成功率: {sum(all_successes)}/{len(all_successes)} ({sum(all_successes)/len(all_successes)*100:.1f}%)")
         logger.info(f"   📈 平均匹配度: {np.mean(all_scores):.2f}")
-        logger.info(f"   🎯 高匹配率(>0.5): {sum(1 for s in all_scores if s > 0.5)}/{len(all_scores)} ({sum(1 for s in all_scores if s > 0.5)/len(all_scores)*100:.1f}%)")
+        logger.info(f"   🎯 完全匹配率: {sum(1 for s in all_scores if s == 1)}/{len(all_scores)} ({sum(1 for s in all_scores if s == 1)/len(all_scores)*100:.1f}%)")
         logger.info(f"   ⏱️  总耗时: {total_time:.1f} 秒")
         if excel_filename:
             logger.info(f"   📄 Excel报告: {excel_filename}")
@@ -756,7 +753,7 @@ class SimpleEnterprisePolicyTester:
             'total_tests': len(all_scores),
             'success_rate': sum(all_successes)/len(all_successes)*100,
             'avg_match_score': np.mean(all_scores),
-            'high_match_rate': sum(1 for s in all_scores if s > 0.5)/len(all_scores)*100,
+            'high_match_rate': sum(1 for s in all_scores if s == 1)/len(all_scores)*100,
             'total_time': total_time,
             'excel_file': excel_filename,
             'match_matrix': match_matrix

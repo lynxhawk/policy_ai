@@ -177,6 +177,8 @@ class EnterprisePolicyMatcher:
         except Exception as e:
             self.logger.warning(f"毕业年限计算失败: {graduation_time}, 错误: {e}")
             return None
+    
+    def calculate_operation_years(self, register_time: str) -> Optional[int]:
         """
         根据注册时间计算经营年限
         
@@ -434,28 +436,26 @@ class EnterprisePolicyMatcher:
         return (policy_type == "企业" or 
                 any(keyword in target_audience for keyword in enterprise_keywords))
     
-    def calculate_enterprise_match_score(self, enterprise_data: Dict, policy_data: Dict) -> float:
+    def calculate_enterprise_match_score(self, enterprise_data: Dict, policy_data: Dict) -> int:
         """
-        计算企业与政策的匹配分数，返回0-1之间的匹配率
+        计算企业与政策的匹配结果，返回0或1（二值化结果）
+        只有所有条件都匹配才返回1，否则返回0
         
         Args:
             enterprise_data: 企业数据字典
             policy_data: 政策数据字典
             
         Returns:
-            匹配分数 (0.0-1.0)，出错时返回0.0
+            匹配结果 (0或1)，出错时返回0
         """
         try:
             # 检查是否为企业政策
             if not self.is_enterprise_policy(policy_data):
                 self.logger.debug(f"政策 {policy_data.get('政策编号', 'Unknown')} 不是企业政策")
-                return 0.0
+                return 0
             
             # 预处理企业数据
             processed_enterprise_data = self.preprocess_enterprise_data(enterprise_data)
-            
-            matched_conditions = 0
-            total_conditions = 0
             
             # 处理嵌套条件结构
             condition_root = policy_data.get("条件", {})
@@ -466,8 +466,9 @@ class EnterprisePolicyMatcher:
             
             if total_conditions == 0:
                 self.logger.warning(f"企业政策 {policy_data.get('政策编号', 'Unknown')} 没有条件规则")
-                return 0.0
+                return 0
             
+            # 检查每个条件，有任何一个不匹配就返回0
             for condition in all_conditions:
                 try:
                     field = condition.get("字段")
@@ -476,43 +477,42 @@ class EnterprisePolicyMatcher:
                     
                     if not field or not operator:
                         self.logger.warning(f"条件缺少必要字段: {condition}")
-                        continue
+                        return 0  # 缺少必要字段视为不匹配
                     
                     if field in processed_enterprise_data:
                         enterprise_value = processed_enterprise_data[field]
                         
-                        if self.check_enterprise_condition(enterprise_value, operator, value):
-                            matched_conditions += 1
-                            self.logger.debug(f"条件匹配成功: {field} {operator} {value}, 企业值: {enterprise_value}")
-                        else:
+                        if not self.check_enterprise_condition(enterprise_value, operator, value):
                             self.logger.debug(f"条件匹配失败: {field} {operator} {value}, 企业值: {enterprise_value}")
+                            return 0  # 有任何条件不匹配，立即返回0
+                        else:
+                            self.logger.debug(f"条件匹配成功: {field} {operator} {value}, 企业值: {enterprise_value}")
                     else:
                         self.logger.debug(f"企业数据中缺少字段: {field}")
+                        return 0  # 缺少字段视为不匹配
                         
                 except Exception as e:
                     self.logger.error(f"处理单个条件异常: {condition}, 错误: {e}")
-                    continue
+                    return 0  # 出现异常视为不匹配
             
-            # 返回匹配率（0-1之间的浮点数）
-            score = matched_conditions / total_conditions
-            self.logger.info(f"企业 {enterprise_data.get('企业ID', 'Unknown')} 与政策 {policy_data.get('政策编号', 'Unknown')} 匹配分数: {score:.2f} ({matched_conditions}/{total_conditions})")
-            
-            return round(score, 2)
+            # 所有条件都匹配才返回1
+            self.logger.info(f"企业 {enterprise_data.get('企业ID', 'Unknown')} 与政策 {policy_data.get('政策编号', 'Unknown')} 完全匹配 (1)")
+            return 1
             
         except Exception as e:
-            self.logger.error(f"计算企业匹配分数异常: 企业={enterprise_data.get('企业ID', 'Unknown')}, 政策={policy_data.get('政策编号', 'Unknown')}, 错误: {e}")
-            return 0.0
+            self.logger.error(f"计算企业匹配结果异常: 企业={enterprise_data.get('企业ID', 'Unknown')}, 政策={policy_data.get('政策编号', 'Unknown')}, 错误: {e}")
+            return 0
     
     def batch_calculate_enterprise_match_scores(self, enterprise_data: Dict, policies_data: List[Dict]) -> List[Dict]:
         """
-        批量计算企业与多个政策的匹配分数
+        批量计算企业与多个政策的匹配结果
         
         Args:
             enterprise_data: 企业数据字典
             policies_data: 政策数据列表
             
         Returns:
-            包含政策信息和匹配分数的列表，按分数降序排列
+            包含政策信息和匹配结果的列表，完全匹配的政策排在前面
         """
         results = []
         enterprise_id = enterprise_data.get("企业ID", "Unknown")
@@ -520,34 +520,35 @@ class EnterprisePolicyMatcher:
         # 过滤出企业类型政策
         enterprise_policies = [policy for policy in policies_data if self.is_enterprise_policy(policy)]
         
-        self.logger.info(f"开始为企业 {enterprise_id} 计算 {len(enterprise_policies)} 个企业政策的匹配分数")
+        self.logger.info(f"开始为企业 {enterprise_id} 计算 {len(enterprise_policies)} 个企业政策的匹配结果")
         
         for i, policy_data in enumerate(enterprise_policies):
             try:
-                score = self.calculate_enterprise_match_score(enterprise_data, policy_data)
+                match_result = self.calculate_enterprise_match_score(enterprise_data, policy_data)
                 
                 result = {
                     "政策编号": policy_data.get("政策编号", f"Policy_{i}"),
                     "政策名称": policy_data.get("政策名称", ""),
                     "政策类型": policy_data.get("政策类型", ""),
-                    "匹配分数": score,
+                    "匹配结果": match_result,  # 0或1
+                    "匹配状态": "完全匹配" if match_result == 1 else "不匹配",
                     "适用对象": policy_data.get("适用对象", ""),
                     "政策描述": policy_data.get("政策描述", "")
                 }
                 
                 results.append(result)
                 
-                self.logger.debug(f"政策 {result['政策编号']} 匹配分数: {score}")
+                self.logger.debug(f"政策 {result['政策编号']} 匹配结果: {match_result}")
                 
             except Exception as e:
-                self.logger.error(f"计算第 {i+1} 个政策匹配分数失败: {e}")
+                self.logger.error(f"计算第 {i+1} 个政策匹配结果失败: {e}")
                 continue
         
-        # 按匹配分数降序排列
-        results.sort(key=lambda x: x["匹配分数"], reverse=True)
+        # 按匹配结果排序：完全匹配的(1)排在前面
+        results.sort(key=lambda x: x["匹配结果"], reverse=True)
         
-        avg_score = sum(r["匹配分数"] for r in results) / len(results) if results else 0.0
-        self.logger.info(f"企业 {enterprise_id} 匹配计算完成，平均分数: {avg_score:.2f}, 共匹配 {len(results)} 个企业政策")
+        matched_count = sum(1 for r in results if r["匹配结果"] == 1)
+        self.logger.info(f"企业 {enterprise_id} 匹配计算完成，完全匹配 {matched_count} 个政策，共处理 {len(results)} 个企业政策")
         
         return results
     
@@ -573,7 +574,7 @@ class EnterprisePolicyMatcher:
             try:
                 enterprise_id = enterprise_data.get("企业ID", f"Enterprise_{enterprise_idx}")
                 
-                # 计算该企业与所有企业政策的匹配分数
+                # 计算该企业与所有企业政策的匹配结果
                 enterprise_results = self.batch_calculate_enterprise_match_scores(enterprise_data, enterprise_policies)
                 all_results[enterprise_id] = enterprise_results
                         
@@ -596,7 +597,7 @@ class EnterprisePolicyRecommendationEngine:
         self.matcher = EnterprisePolicyMatcher()
         
     def recommend_policies_for_enterprise(self, enterprise_data: Dict, policies_data: List[Dict], 
-                                        top_n: int = 10, min_score: float = 0.0) -> List[Dict]:
+                                        top_n: int = 10, only_matched: bool = True) -> List[Dict]:
         """
         为单个企业推荐政策
         
@@ -604,21 +605,24 @@ class EnterprisePolicyRecommendationEngine:
             enterprise_data: 企业数据
             policies_data: 政策数据列表
             top_n: 返回前N个推荐结果
-            min_score: 最低匹配分数阈值
+            only_matched: 是否只返回完全匹配的政策
             
         Returns:
             推荐政策列表
         """
         results = self.matcher.batch_calculate_enterprise_match_scores(enterprise_data, policies_data)
         
-        # 过滤低分政策
-        filtered_results = [r for r in results if r["匹配分数"] >= min_score]
+        # 过滤结果
+        if only_matched:
+            filtered_results = [r for r in results if r["匹配结果"] == 1]
+        else:
+            filtered_results = results
         
         # 返回前N个结果
         return filtered_results[:top_n]
     
     @staticmethod
-    def calculate_enterprise_match_score(enterprise_data: Dict, policy_data: Dict) -> float:
-        """静态方法包装器，保持向后兼容"""
+    def calculate_enterprise_match_score(enterprise_data: Dict, policy_data: Dict) -> int:
+        """静态方法包装器，保持向后兼容（现在返回0或1）"""
         matcher = EnterprisePolicyMatcher()
         return matcher.calculate_enterprise_match_score(enterprise_data, policy_data)
