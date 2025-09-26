@@ -12,12 +12,31 @@ import warnings
 warnings.filterwarnings('ignore')
 
 
-def safe_convert_numpy(value):
-    """安全转换numpy类型为Python原生类型"""
+def safe_convert_numpy(value, field_name=None):
+    """安全转换numpy类型为Python原生类型，并根据字段类型设置精度"""
     if isinstance(value, (np.integer, np.int64, np.int32)):
         return int(value)
     elif isinstance(value, (np.floating, np.float64, np.float32)):
-        return float(value)
+        # 判断是否为百分比字段（0-100范围）还是比例字段（0-1范围）
+        float_val = float(value)
+        
+        # 0-100范围的字段，保留4位小数
+        percentage_fields = [
+            'stability_index', 'avg_mom_growth', 'avg_yoy_growth', 
+            'latest_mom_growth', 'latest_yoy_growth', 'total_change_pct', 'volatility'
+        ]
+        
+        # 0-1范围的字段，保留6位小数
+        ratio_fields = ['trend_strength']
+        
+        if field_name in percentage_fields:
+            return round(float_val, 4)
+        elif field_name in ratio_fields:
+            return round(float_val, 6)
+        else:
+            # 其他浮点数字段默认保留2位小数
+            return round(float_val, 2)
+            
     elif isinstance(value, (np.bool_, bool)):
         return bool(value)
     else:
@@ -44,25 +63,27 @@ class AnalysisResult:
         self.total_change_pct = kwargs.get('total_change_pct', 0.0)
         self.trend_rating = kwargs.get('trend_rating', '未知')
         self.stability_rating = kwargs.get('stability_rating', '未知')
+        self.volatility_rating = kwargs.get('volatility_rating', '未知')
 
     def to_dict(self):
         """转换为字典"""
         result = {
             'data_type': self.data_type,
-            'total_records': safe_convert_numpy(self.total_records),
-            'mean_count': safe_convert_numpy(self.mean_count),
-            'stability_index': safe_convert_numpy(self.stability_index),
-            'trend_strength': safe_convert_numpy(self.trend_strength),
-            'volatility': safe_convert_numpy(self.volatility),
-            'avg_mom_growth': safe_convert_numpy(self.avg_mom_growth),
-            'avg_yoy_growth': safe_convert_numpy(self.avg_yoy_growth),
-            'latest_mom_growth': safe_convert_numpy(self.latest_mom_growth),
-            'latest_yoy_growth': safe_convert_numpy(self.latest_yoy_growth),
-            'max_count': safe_convert_numpy(self.max_count),
-            'min_count': safe_convert_numpy(self.min_count),
-            'total_change_pct': safe_convert_numpy(self.total_change_pct),
+            'total_records': safe_convert_numpy(self.total_records, 'total_records'),
+            'mean_count': safe_convert_numpy(self.mean_count, 'mean_count'),
+            'stability_index': safe_convert_numpy(self.stability_index, 'stability_index'),
+            'trend_strength': safe_convert_numpy(self.trend_strength, 'trend_strength'),
+            'volatility': safe_convert_numpy(self.volatility, 'volatility'),
+            'avg_mom_growth': safe_convert_numpy(self.avg_mom_growth, 'avg_mom_growth'),
+            'avg_yoy_growth': safe_convert_numpy(self.avg_yoy_growth, 'avg_yoy_growth'),
+            'latest_mom_growth': safe_convert_numpy(self.latest_mom_growth, 'latest_mom_growth'),
+            'latest_yoy_growth': safe_convert_numpy(self.latest_yoy_growth, 'latest_yoy_growth'),
+            'max_count': safe_convert_numpy(self.max_count, 'max_count'),
+            'min_count': safe_convert_numpy(self.min_count, 'min_count'),
+            'total_change_pct': safe_convert_numpy(self.total_change_pct, 'total_change_pct'),
             'trend_rating': self.trend_rating,
-            'stability_rating': self.stability_rating
+            'stability_rating': self.stability_rating,
+            'volatility_rating': self.volatility_rating
         }
 
         # 只有当 industry 不为 None 时才添加到结果中
@@ -253,6 +274,15 @@ class TalentDataAnalyzer:
             return "中等稳定"
         else:
             return "不稳定"
+        
+    def get_volatility_rating(self, volatility: float) -> str:
+        """获取波动率评级"""
+        if volatility > 50:
+            return "高波动"
+        elif volatility > 20:
+            return "中等波动"
+        else:
+            return "低波动"
 
     def analyze_industry_data(self, data: pd.DataFrame, data_type: str, value_column: str = 'count') -> List[AnalysisResult]:
         """
@@ -316,7 +346,8 @@ class TalentDataAnalyzer:
                 trend_rating=self.get_trend_rating(
                     stability_metrics['trend_strength']),
                 stability_rating=self.get_stability_rating(
-                    stability_metrics['stability_index'])
+                    stability_metrics['stability_index']),
+                volatility_rating=self.get_volatility_rating(stability_metrics['volatility'])
             )
             results.append(result)
 
@@ -369,7 +400,8 @@ class TalentDataAnalyzer:
             trend_rating=self.get_trend_rating(
                 stability_metrics['trend_strength']),
             stability_rating=self.get_stability_rating(
-                stability_metrics['stability_index'])
+                stability_metrics['stability_index']),
+            volatility_rating=self.get_volatility_rating(stability_metrics['volatility'])
         )
 
         return result
