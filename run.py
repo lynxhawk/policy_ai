@@ -1,10 +1,11 @@
 """
 统一政策和人才流动分析FastAPI接口服务
-集成政策匹配（用户和企业）、政策预审和人才流动分析功能
+集成政策匹配（用户和企业）、政策预审、人才流动分析、社会风险评估、热度分析和信用风险评估功能
 """
 
 from fastapi import FastAPI, Request
 from typing import Dict, List, Any, Optional, Union
+from pydantic import BaseModel
 import pandas as pd
 import uvicorn
 from datetime import datetime
@@ -22,15 +23,38 @@ from data_processor_enterprise import DataProcessor as EnterpriseDataProcessor
 # 导入人才流动分析核心模块
 from talent_analyzer import TalentDataAnalyzer
 
+# 导入风险评估和热度分析模块
+from socialRiskModelV2 import SocialAuditModel2
+from newHeatModel import NewHeatModelAnalysis
+from creditRiskModel import creditRiskModel
+
 # 配置日志
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# 初始化FastAPI应用
+# ==================== Pydantic模型定义 ====================
+
+class RiskRequest(BaseModel):
+    data: List[Dict[str, Any]]
+    config: Optional[Dict[str, Any]] = None
+
+
+class RiskResponse(BaseModel):
+    status_code: int
+    result: List
+    message: str
+
+
+class HeatRequestBody(BaseModel):
+    data: List[Dict]
+
+
+# ==================== 初始化FastAPI应用 ====================
+
 app = FastAPI(
     title="政策与人才流动统一分析API",
-    description="集成用户政策匹配、企业政策匹配、政策预审和人才流动分析功能的统一系统",
-    version="5.0.0"
+    description="集成用户政策匹配、企业政策匹配、政策预审、人才流动分析、社会风险评估、热度分析和信用风险评估功能的统一系统",
+    version="6.0.0"
 )
 
 # 初始化政策系统组件
@@ -43,6 +67,11 @@ enterprise_data_processor = EnterpriseDataProcessor()
 
 # 初始化人才流动分析组件
 talent_analyzer = TalentDataAnalyzer()
+
+# 初始化风险评估和热度分析组件
+social_risk_obj = SocialAuditModel2()
+new_heat_obj = NewHeatModelAnalysis()
+credit_risk_obj = creditRiskModel()
 
 
 # ==================== 人才流动分析通用函数 ====================
@@ -79,9 +108,10 @@ async def health_check():
         "service": "政策与人才流动统一分析API",
         "modules": [
             "用户政策匹配", "企业政策匹配", "用户政策预审", "企业政策预审",
-            "求职者意向分析", "企业招聘分析", "外地户籍分析"
+            "求职者意向分析", "企业招聘分析", "外地户籍分析",
+            "社会风险评估", "热度分析", "信用风险评估"
         ],
-        "version": "5.0.0"
+        "version": "6.0.0"
     }
 
 
@@ -281,7 +311,6 @@ async def user_audit_single_policy(request: Request):
         user_data = request_data.get('user', {})
         policy_data = request_data.get('policy', {})
 
-        # 调用修改后的预审方法，返回详细结果
         audit_result = user_audit_engine.audit_policy(user_data, policy_data)
 
         return {
@@ -315,11 +344,9 @@ async def user_batch_audit(request: Request):
         if not isinstance(users_data, list):
             users_data = [users_data] if users_data else []
 
-        # 调用修改后的多用户预审方法
         audit_results = user_audit_engine.multi_user_audit_policy(
             users_data, policy_data)
 
-        # 提取通过预审的用户ID（保持向后兼容）
         passed_user_ids = []
         detailed_results = []
 
@@ -327,7 +354,6 @@ async def user_batch_audit(request: Request):
             if i < len(audit_results):
                 result = audit_results[i]
 
-                # 获取用户ID
                 try:
                     user_dict = user_data_processor.process_user_data(
                         user_data)
@@ -339,11 +365,9 @@ async def user_batch_audit(request: Request):
                 except:
                     user_id = f"User_{i}"
 
-                # 如果预审通过，添加到通过列表
                 if result.get("result", 0) == 1:
                     passed_user_ids.append(str(user_id))
 
-                # 添加到详细结果
                 detailed_results.append({
                     "user_id": str(user_id),
                     "result": result.get("result", 0),
@@ -353,8 +377,8 @@ async def user_batch_audit(request: Request):
 
         return {
             "status_code": 200,
-            "passed_user_ids": passed_user_ids,  # 保持向后兼容
-            "detailed_results": detailed_results,  # 新增的详细结果
+            "passed_user_ids": passed_user_ids,
+            "detailed_results": detailed_results,
             "summary": {
                 "total_users": len(users_data),
                 "passed_users": len(passed_user_ids),
@@ -378,8 +402,8 @@ async def user_batch_audit(request: Request):
             "message": "批量预审过程中发生异常"
         }
 
-# ==================== 企业政策预审接口 ====================
 
+# ==================== 企业政策预审接口 ====================
 
 @app.post("/enterprise/audit-single",
           summary="单个企业政策预审",
@@ -391,7 +415,6 @@ async def enterprise_audit_single_policy(request: Request):
         enterprise_data = request_data.get('enterprise', {})
         policy_data = request_data.get('policy', {})
 
-        # 调用修改后的预审方法，返回详细结果
         audit_result = enterprise_audit_engine.audit_policy(
             enterprise_data, policy_data)
 
@@ -426,11 +449,9 @@ async def enterprise_batch_audit(request: Request):
         if not isinstance(enterprises_data, list):
             enterprises_data = [enterprises_data] if enterprises_data else []
 
-        # 调用修改后的多企业预审方法
         audit_results = enterprise_audit_engine.multi_enterprise_audit_policy(
             enterprises_data, policy_data)
 
-        # 提取通过预审的企业ID（保持向后兼容）
         passed_enterprise_ids = []
         detailed_results = []
 
@@ -438,7 +459,6 @@ async def enterprise_batch_audit(request: Request):
             if i < len(audit_results):
                 result = audit_results[i]
 
-                # 获取企业ID
                 try:
                     enterprise_dict = enterprise_data_processor.process_enterprise_data(
                         enterprise_data)
@@ -451,11 +471,9 @@ async def enterprise_batch_audit(request: Request):
                 except:
                     enterprise_id = f"Enterprise_{i}"
 
-                # 如果预审通过，添加到通过列表
                 if result.get("result", 0) == 1:
                     passed_enterprise_ids.append(str(enterprise_id))
 
-                # 添加到详细结果
                 detailed_results.append({
                     "enterprise_id": str(enterprise_id),
                     "result": result.get("result", 0),
@@ -465,8 +483,8 @@ async def enterprise_batch_audit(request: Request):
 
         return {
             "status_code": 200,
-            "passed_enterprise_ids": passed_enterprise_ids,  # 保持向后兼容
-            "detailed_results": detailed_results,  # 新增的详细结果
+            "passed_enterprise_ids": passed_enterprise_ids,
+            "detailed_results": detailed_results,
             "summary": {
                 "total_enterprises": len(enterprises_data),
                 "passed_enterprises": len(passed_enterprise_ids),
@@ -490,8 +508,8 @@ async def enterprise_batch_audit(request: Request):
             "message": "批量预审过程中发生异常"
         }
 
-# ==================== 人才流动分析接口 ====================
 
+# ==================== 人才流动分析接口 ====================
 
 @app.post("/talent/analyze-applicant",
           summary="求职者意向行业变化趋势分析",
@@ -610,6 +628,84 @@ async def analyze_nonlocal_count(request: Request):
         return create_error_response("分析过程出错")
 
 
+# ==================== 社会风险评估接口 ====================
+
+@app.post("/getSocialRisks",
+          response_model=RiskResponse,
+          summary="社会风险评估",
+          description="评估企业/个体的社会风险，返回风险评分、等级和直判结果")
+def get_social_risks(req: RiskRequest):
+    """
+    传入：
+    - req.data: 企业/个体列表（中文字段）
+    - req.config: 可选配置（如 hard_limits/thresholds/weight_amp_factor 等）
+    返回：
+    - summary + data（包含 RiskScore、风险等级、是否直判等）
+    """
+    try:
+        return social_risk_obj.evaluate_payload(req.data, req.config)
+    except Exception as e:
+        logger.error(f"社会风险评估异常: {e}")
+        logger.error(traceback.format_exc())
+        return {
+            "status_code": 500,
+            "result": [],
+            "message": f"社会风险评估失败: {str(e)}"
+        }
+
+
+# ==================== 热度分析接口 ====================
+
+@app.post("/getHeat",
+          summary="热度分析",
+          description="分析数据的热度值")
+def get_heat(body: HeatRequestBody):
+    """
+    传入：
+    - body.data: 需要分析的数据列表
+    返回：
+    - 热度分析结果
+    """
+    try:
+        heat_data = body.data
+        new_heat_num = new_heat_obj.entrance(heat_data)
+        return new_heat_num
+    except Exception as e:
+        logger.error(f"热度分析异常: {e}")
+        logger.error(traceback.format_exc())
+        return {
+            "status_code": 500,
+            "result": None,
+            "message": f"热度分析失败: {str(e)}"
+        }
+
+
+# ==================== 信用风险评估接口 ====================
+
+@app.post("/getCreditRisks",
+          response_model=RiskResponse,
+          summary="信用风险评估",
+          description="评估企业/个体的信用风险，返回风险评分、等级和直判结果")
+def get_credit_risks(req: RiskRequest):
+    """
+    传入：
+    - req.data: 企业/个体列表（中文字段）
+    - req.config: 可选配置（如 hard_limits/thresholds/weight_amp_factor 等）
+    返回：
+    - summary + data（包含 RiskScore、风险等级、是否直判等）
+    """
+    try:
+        return credit_risk_obj.evaluate_payload({"data": req.data}, req.config)
+    except Exception as e:
+        logger.error(f"信用风险评估异常: {e}")
+        logger.error(traceback.format_exc())
+        return {
+            "status_code": 500,
+            "result": [],
+            "message": f"信用风险评估失败: {str(e)}"
+        }
+
+
 # ==================== 全局异常处理器 ====================
 
 @app.exception_handler(Exception)
@@ -652,12 +748,19 @@ if __name__ == "__main__":
     print("   • 企业招聘分析: http://localhost:8081/talent/analyze-corporate")
     print("   • 外地户籍分析: http://localhost:8081/talent/analyze-nonlocal")
     print()
+    print("⚠️  风险评估接口:")
+    print("   • 社会风险评估: http://localhost:8081/getSocialRisks")
+    print("   • 信用风险评估: http://localhost:8081/getCreditRisks")
+    print()
+    print("🔥 热度分析接口:")
+    print("   • 热度分析: http://localhost:8081/getHeat")
+    print()
     print("=" * 70)
     print("按 Ctrl+C 停止服务")
 
     uvicorn.run(
         "run:app",
-        host="127.0.0.1",
+        host="10.1.50.96",
         port=8081,
         reload=True,
         log_level="info"
